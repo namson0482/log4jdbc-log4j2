@@ -1,0 +1,12 @@
+net/sf/log4jdbc/properties/LoadPropertiesFromSysPropsTest.class
+net/sf/log4jdbc/log/slf4j/TestLoggingFunctionalitesWithSl4j.class
+net/sf/log4jdbc/log/log4j2/TestLoggingFunctionalitesWithLog4j2.class
+net/sf/log4jdbc/sql/jdbcapi/MockDriverUtils.class
+net/sf/log4jdbc/log/CheckLoggingFunctionalites$1.class
+net/sf/log4jdbc/log/CheckLoggingFunctionalites.class
+net/sf/log4jdbc/log/ResultSetPrintTest.class
+net/sf/log4jdbc/TestAncestor$1.class
+net/sf/log4jdbc/properties/LoadPropertiesFromFileTest.class
+net/sf/log4jdbc/log/slf4j/NoSlf4jLoggerIT.class
+net/sf/log4jdbc/log/log4j2/NoLog4j2LoggerIT.class
+net/sf/log4jdbc/TestAncestor.class
