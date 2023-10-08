@@ -1,12 +1,12 @@
 /**
  * Copyright 2007-2012 Arthur Blake
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -50,22 +50,22 @@ import net.sf.log4jdbc.sql.resultsetcollector.ResultSetCollector;
  * @author Frederic Bastian
  * @author Mathieu Seppey
  */
-public interface SpyLogDelegator
-{
+public interface SpyLogDelegator {
     /**
-     * A {@code String} corresponding to the value of the argument {@code methodCall} 
+     * A {@code String} corresponding to the value of the argument {@code methodCall}
      * of the method {@link #exceptionOccured(Spy, String, Exception, String, long)}, 
      * when the method was called following a call to the JDBC method 
      * {@code java.sql.Statement#getGeneratedKeys()}.
      * <p>
      * This attribute is used so that {@code SpyLogDelegator} implementations can recognize 
      * an error occurring following a call to {@code java.sql.Statement#getGeneratedKeys()}, 
-     * and discard them if the property {@code log4jdbc.suppress.generated.keys.exception} 
+     * and discard them if the property {@code log4jdbc.suppress.generated.keys.exception}
      * is {@code true}.
-     * 
+     *
      * @see #exceptionOccured(Spy, String, Exception, String, long)
      */
     public static final String GET_GENERATED_KEYS_METHOD_CALL = "getGeneratedKeys()";
+
     /**
      * Determine if any of the jdbc or sql loggers are turned on.
      *
@@ -131,7 +131,7 @@ public interface SpyLogDelegator
 
     /**
      * Called whenever a new connection spy is created.
-     * 
+     *
      * @param spy ConnectionSpy that was created.
      * @param execTime  A <code>long</code> defining the time elapsed to open the connection in ms
      *          (useful information, as a connection might take some time to be opened sometimes). 
@@ -141,7 +141,7 @@ public interface SpyLogDelegator
 
     /**
      * Called whenever a connection spy is closed.
-     * 
+     *
      * @param spy     <code>ConnectionSpy</code> that was closed.
      * @param execTime  A <code>long</code> defining the time elapsed to close the connection in ms
      *          (useful information, as a connection might take some time to be closed sometimes). 
@@ -151,13 +151,13 @@ public interface SpyLogDelegator
 
     /**
      * Called whenever a connection spy is aborted.
-     * 
+     *
      * @param spy     <code>ConnectionSpy</code> that was aborted.
      * @param execTime  A <code>long</code> defining the time elapsed to abort the connection in ms
      *          (useful information, as a connection might take some time to be aborted sometimes). 
      *                    Caller should pass -1 if not used or unknown.
      */
-    public void connectionAborted(Spy spy, long execTime);  
+    public void connectionAborted(Spy spy, long execTime);
 
     /**
      * Log a Setup and/or administrative log message for log4jdbc.
@@ -183,16 +183,16 @@ public interface SpyLogDelegator
 
     /**
      * Called whenever result set has been collected.
-     * 
+     *
      * This method will be actually called
      * when the <code>next()</code> method of the spied <code>ResultSet</code>
      * return <code>false</code> meaning that its end is reached.
      * It will be also called if the <code>ResultSet</code> is closed. 
-     * 
+     *
      * @see net.sf.log4jdbc.ResultSetSpy
      * @see net.sf.log4jdbc.sql.resultsetcollector.DefaultResultSetCollector
 
-     */ 
+     */
     public void resultSetCollected(ResultSetCollector resultSetCollector);
 
 }
