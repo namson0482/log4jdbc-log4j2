@@ -268,7 +268,7 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator {
                         ". " + processSql(sql));
             } else if (sqlOnlyLogger.isInfoEnabled()) {
                 String value = processSql(sql);
-//                System.out.println(value);
+                System.out.println("Query Command: " + value);
                 sqlOnlyLogger.info(value);
             }
         }
