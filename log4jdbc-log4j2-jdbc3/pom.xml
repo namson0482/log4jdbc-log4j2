@@ -65,7 +65,7 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>2.4</version>
                 <configuration>
-                    <jvm>${JAVA_1_5_HOME}/bin/java</jvm>
+                    <jvm>${JAVA_1_7_HOME}/bin/java</jvm>
                 </configuration>
             </plugin>
         </plugins>
