@@ -21,8 +21,9 @@ package net.sf.log4jdbc.sql;
 public class Utilities {
     /**
      * Right justify a field within a certain number of spaces.
+     *
      * @param fieldSize field size to right justify field within.
-     * @param field contents to right justify within field.
+     * @param field     contents to right justify within field.
      * @return the field, right justified within the requested size.
      */
     public static String rightJustify(int fieldSize, String field) {

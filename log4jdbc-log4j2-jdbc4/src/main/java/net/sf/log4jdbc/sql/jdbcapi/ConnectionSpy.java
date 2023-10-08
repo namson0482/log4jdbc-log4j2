@@ -15,49 +15,30 @@
  */
 package net.sf.log4jdbc.sql.jdbcapi;
 
-import java.sql.Array;
-import java.sql.CallableStatement;
-import java.sql.Blob;
-import java.sql.Clob;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.NClob;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.SQLWarning;
-import java.sql.Savepoint;
-import java.sql.Statement;
-import java.sql.Struct;
-import java.sql.SQLClientInfoException;
-import java.sql.SQLXML;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.Executor;
-
 import net.sf.log4jdbc.log.SpyLogDelegator;
 import net.sf.log4jdbc.sql.Spy;
 import net.sf.log4jdbc.sql.rdbmsspecifics.RdbmsSpecifics;
 
+import java.sql.*;
+import java.util.*;
+import java.util.concurrent.Executor;
+
 /**
  * Wraps a JDBC Connection and reports method calls, returns and exceptions.
- *
+ * <p>
  * This version is for jdbc 4.
  * <p>
  * <h3>Modifications for log4j2: </h3>
  * <ul>
- * <li>Addition of new constructors, to accept a parameter <code>execTime</code>, 
- * a <code>long</code> defining the time elapsed to open the connection in ms. 
- * (see <code>SpyLogDelegator#connectionOpened(Spy, long)</code> for more details, 
+ * <li>Addition of new constructors, to accept a parameter <code>execTime</code>,
+ * a <code>long</code> defining the time elapsed to open the connection in ms.
+ * (see <code>SpyLogDelegator#connectionOpened(Spy, long)</code> for more details,
  * and modifications in <code>DriverSpy#connect(String, Properties)</code>).
- * <li>Modification of the method <code>close()</code> in order to compute 
- * execution time to close the connection (see <code>SpyLogDelegator#connectionClosed(Spy, long), 
+ * <li>Modification of the method <code>close()</code> in order to compute
+ * execution time to close the connection (see <code>SpyLogDelegator#connectionClosed(Spy, long),
  * or before an <code>Exception</code> is thrown if a problem occurs. </code>)
- * <li>Addition of a new method <code>ConnectionSpy#reportException(String, SQLException, long)</code> 
- * to log execution time before an <code>Exception</code> is thrown when the connection closing failed. 
+ * <li>Addition of a new method <code>ConnectionSpy#reportException(String, SQLException, long)</code>
+ * to log execution time before an <code>Exception</code> is thrown when the connection closing failed.
  * </ul>
  *
  * @author Arthur Blake
@@ -65,28 +46,89 @@ import net.sf.log4jdbc.sql.rdbmsspecifics.RdbmsSpecifics;
  * @author Mathieu Seppey
  */
 public class ConnectionSpy implements Connection, Spy {
-    private Connection realConnection;
-
-    /**
-     * Get the real underlying Connection that this ConnectionSpy wraps.
-     *
-     * @return the real underlying Connection.
-     */
-    public Connection getRealConnection() {
-        return realConnection;
-    }
-
-    private SpyLogDelegator log;
-
-    private final Integer connectionNumber;
-    private static int lastConnectionNumber = 0;
-
     /**
      * Contains a Mapping of connectionNumber to currently open ConnectionSpy
      * objects.
      */
     private static final Map<Integer, ConnectionSpy> connectionTracker =
             new HashMap<Integer, ConnectionSpy>();
+    private static int lastConnectionNumber = 0;
+    private final Integer connectionNumber;
+    private Connection realConnection;
+    private SpyLogDelegator log;
+    private RdbmsSpecifics rdbmsSpecifics;
+
+    /**
+     * Create a new ConnectionSpy that wraps a given Connection.
+     *
+     * @param realConnection &quot;real&quot; Connection that this ConnectionSpy wraps.
+     * @param logDelegator   The <code>SpyLogDelegator</code> used by
+     *                       this <code>ConnectionSpy</code> and all resources obtained from it
+     *                       (<code>StatementSpy</code>s, ...)
+     */
+    public ConnectionSpy(Connection realConnection, SpyLogDelegator logDelegator) {
+        this(realConnection, DriverSpy.defaultRdbmsSpecifics, logDelegator);
+    }
+
+    /**
+     * Create a new ConnectionSpy that wraps a given Connection.
+     *
+     * @param realConnection &quot;real&quot; Connection that this ConnectionSpy wraps.
+     * @param execTime       a <code>long</code> defining the time in ms
+     *                       taken to open the connection to <code>realConnection</code>.
+     * @param logDelegator   The <code>SpyLogDelegator</code> used by
+     *                       this <code>ConnectionSpy</code> and all resources obtained from it
+     *                       (<code>StatementSpy</code>s, ...)
+     */
+    public ConnectionSpy(Connection realConnection, long execTime, SpyLogDelegator logDelegator) {
+        this(realConnection, null, execTime, logDelegator);
+    }
+
+    /**
+     * Create a new ConnectionSpy that wraps a given Connection.
+     *
+     * @param realConnection &quot;real&quot; Connection that this ConnectionSpy wraps.
+     * @param rdbmsSpecifics the RdbmsSpecifics object for formatting logging appropriate for the Rdbms used.
+     * @param logDelegator   The <code>SpyLogDelegator</code> used by
+     *                       this <code>ConnectionSpy</code> and all resources obtained from it
+     *                       (<code>StatementSpy</code>s, ...)
+     */
+    public ConnectionSpy(Connection realConnection, RdbmsSpecifics rdbmsSpecifics,
+                         SpyLogDelegator logDelegator) {
+        this(realConnection, rdbmsSpecifics, -1L, logDelegator);
+    }
+
+    /**
+     * Create a new ConnectionSpy that wraps a given Connection.
+     *
+     * @param realConnection &quot;real&quot; Connection that this ConnectionSpy wraps.
+     * @param rdbmsSpecifics the RdbmsSpecifics object for formatting logging appropriate for the Rdbms used.
+     * @param execTime       a <code>long</code> defining the time in ms
+     *                       taken to open the connection to <code>realConnection</code>.
+     *                       Should be equals to -1 if not used.
+     * @param logDelegator   The <code>SpyLogDelegator</code> used by
+     *                       this <code>ConnectionSpy</code> and all resources obtained from it
+     *                       (<code>StatementSpy</code>s, ...)
+     */
+    public ConnectionSpy(Connection realConnection, RdbmsSpecifics rdbmsSpecifics,
+                         long execTime, SpyLogDelegator logDelegator) {
+        if (rdbmsSpecifics == null) {
+            rdbmsSpecifics = DriverSpy.defaultRdbmsSpecifics;
+        }
+        setRdbmsSpecifics(rdbmsSpecifics);
+        if (realConnection == null) {
+            throw new IllegalArgumentException("Must pass in a non null real Connection");
+        }
+        this.realConnection = realConnection;
+        log = logDelegator;
+
+        synchronized (connectionTracker) {
+            connectionNumber = new Integer(++lastConnectionNumber);
+            connectionTracker.put(connectionNumber, this);
+        }
+        log.connectionOpened(this, execTime);
+        reportReturn("new Connection");
+    }
 
     /**
      * Get a dump of how many connections are open, and which connection numbers
@@ -122,86 +164,12 @@ public class ConnectionSpy implements Connection, Spy {
     }
 
     /**
-     * Create a new ConnectionSpy that wraps a given Connection.
+     * Get the real underlying Connection that this ConnectionSpy wraps.
      *
-     * @param realConnection &quot;real&quot; Connection that this ConnectionSpy wraps.
-     * @param logDelegator    The <code>SpyLogDelegator</code> used by
-     * 						this <code>ConnectionSpy</code> and all resources obtained from it
-     * 						(<code>StatementSpy</code>s, ...)
+     * @return the real underlying Connection.
      */
-    public ConnectionSpy(Connection realConnection, SpyLogDelegator logDelegator) {
-        this(realConnection, DriverSpy.defaultRdbmsSpecifics, logDelegator);
-    }
-
-    /**
-     * Create a new ConnectionSpy that wraps a given Connection.
-     *
-     * @param realConnection &quot;real&quot; Connection that this ConnectionSpy wraps.
-     * @param execTime    a <code>long</code> defining the time in ms
-     * 					taken to open the connection to <code>realConnection</code>.
-     * @param logDelegator    The <code>SpyLogDelegator</code> used by
-     * 						this <code>ConnectionSpy</code> and all resources obtained from it
-     * 						(<code>StatementSpy</code>s, ...)
-     */
-    public ConnectionSpy(Connection realConnection, long execTime, SpyLogDelegator logDelegator) {
-        this(realConnection, null, execTime, logDelegator);
-    }
-
-    /**
-     * Create a new ConnectionSpy that wraps a given Connection.
-     *
-     * @param realConnection &quot;real&quot; Connection that this ConnectionSpy wraps.
-     * @param rdbmsSpecifics the RdbmsSpecifics object for formatting logging appropriate for the Rdbms used.
-     * @param logDelegator    The <code>SpyLogDelegator</code> used by
-     * 						this <code>ConnectionSpy</code> and all resources obtained from it
-     * 						(<code>StatementSpy</code>s, ...)
-     */
-    public ConnectionSpy(Connection realConnection, RdbmsSpecifics rdbmsSpecifics,
-                         SpyLogDelegator logDelegator) {
-        this(realConnection, rdbmsSpecifics, -1L, logDelegator);
-    }
-
-    /**
-     * Create a new ConnectionSpy that wraps a given Connection.
-     *
-     * @param realConnection &quot;real&quot; Connection that this ConnectionSpy wraps.
-     * @param rdbmsSpecifics the RdbmsSpecifics object for formatting logging appropriate for the Rdbms used.
-     * @param execTime    a <code>long</code> defining the time in ms
-     * 					taken to open the connection to <code>realConnection</code>.
-     * 					Should be equals to -1 if not used.
-     * @param logDelegator    The <code>SpyLogDelegator</code> used by
-     * 						this <code>ConnectionSpy</code> and all resources obtained from it
-     * 						(<code>StatementSpy</code>s, ...)
-     */
-    public ConnectionSpy(Connection realConnection, RdbmsSpecifics rdbmsSpecifics,
-                         long execTime, SpyLogDelegator logDelegator) {
-        if (rdbmsSpecifics == null) {
-            rdbmsSpecifics = DriverSpy.defaultRdbmsSpecifics;
-        }
-        setRdbmsSpecifics(rdbmsSpecifics);
-        if (realConnection == null) {
-            throw new IllegalArgumentException("Must pass in a non null real Connection");
-        }
-        this.realConnection = realConnection;
-        log = logDelegator;
-
-        synchronized (connectionTracker) {
-            connectionNumber = new Integer(++lastConnectionNumber);
-            connectionTracker.put(connectionNumber, this);
-        }
-        log.connectionOpened(this, execTime);
-        reportReturn("new Connection");
-    }
-
-    private RdbmsSpecifics rdbmsSpecifics;
-
-    /**
-     * Set the RdbmsSpecifics object for formatting logging appropriate for the Rdbms used on this connection.
-     *
-     * @param rdbmsSpecifics the RdbmsSpecifics object for formatting logging appropriate for the Rdbms used.
-     */
-    void setRdbmsSpecifics(RdbmsSpecifics rdbmsSpecifics) {
-        this.rdbmsSpecifics = rdbmsSpecifics;
+    public Connection getRealConnection() {
+        return realConnection;
     }
 
     /**
@@ -211,6 +179,15 @@ public class ConnectionSpy implements Connection, Spy {
      */
     RdbmsSpecifics getRdbmsSpecifics() {
         return rdbmsSpecifics;
+    }
+
+    /**
+     * Set the RdbmsSpecifics object for formatting logging appropriate for the Rdbms used on this connection.
+     *
+     * @param rdbmsSpecifics the RdbmsSpecifics object for formatting logging appropriate for the Rdbms used.
+     */
+    void setRdbmsSpecifics(RdbmsSpecifics rdbmsSpecifics) {
+        this.rdbmsSpecifics = rdbmsSpecifics;
     }
 
     public Integer getConnectionNumber() {
@@ -380,18 +357,6 @@ public class ConnectionSpy implements Connection, Spy {
     }
 
     @Override
-    public void setReadOnly(boolean readOnly) throws SQLException {
-        String methodCall = "setReadOnly(" + readOnly + ")";
-        try {
-            realConnection.setReadOnly(readOnly);
-        } catch (SQLException s) {
-            reportException(methodCall, s);
-            throw s;
-        }
-        reportReturn(methodCall);
-    }
-
-    @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
         String methodCall = "prepareStatement(" + sql + ")";
         try {
@@ -546,19 +511,6 @@ public class ConnectionSpy implements Connection, Spy {
     }
 
     @Override
-    public void setClientInfo(Properties properties) throws SQLClientInfoException {
-        // todo: dump properties?
-        String methodCall = "setClientInfo(" + properties + ")";
-        try {
-            realConnection.setClientInfo(properties);
-        } catch (SQLClientInfoException s) {
-            reportException(methodCall, s);
-            throw s;
-        }
-        reportReturn(methodCall);
-    }
-
-    @Override
     public String getClientInfo(String name) throws SQLException {
         String methodCall = "getClientInfo(" + name + ")";
         try {
@@ -578,6 +530,19 @@ public class ConnectionSpy implements Connection, Spy {
             reportException(methodCall, s);
             throw s;
         }
+    }
+
+    @Override
+    public void setClientInfo(Properties properties) throws SQLClientInfoException {
+        // todo: dump properties?
+        String methodCall = "setClientInfo(" + properties + ")";
+        try {
+            realConnection.setClientInfo(properties);
+        } catch (SQLClientInfoException s) {
+            reportException(methodCall, s);
+            throw s;
+        }
+        reportReturn(methodCall);
     }
 
     @Override
@@ -605,13 +570,13 @@ public class ConnectionSpy implements Connection, Spy {
     }
 
     @Override
-    public void setSchema(String schema) throws SQLException {
-
+    public String getSchema() throws SQLException {
+        return null;
     }
 
     @Override
-    public String getSchema() throws SQLException {
-        return null;
+    public void setSchema(String schema) throws SQLException {
+
     }
 
     @Override
@@ -641,10 +606,10 @@ public class ConnectionSpy implements Connection, Spy {
     }
 
     @Override
-    public void setHoldability(int holdability) throws SQLException {
-        String methodCall = "setHoldability(" + holdability + ")";
+    public void setReadOnly(boolean readOnly) throws SQLException {
+        String methodCall = "setReadOnly(" + readOnly + ")";
         try {
-            realConnection.setHoldability(holdability);
+            realConnection.setReadOnly(readOnly);
         } catch (SQLException s) {
             reportException(methodCall, s);
             throw s;
@@ -691,18 +656,6 @@ public class ConnectionSpy implements Connection, Spy {
     }
 
     @Override
-    public void setCatalog(String catalog) throws SQLException {
-        String methodCall = "setCatalog(" + catalog + ")";
-        try {
-            realConnection.setCatalog(catalog);
-        } catch (SQLException s) {
-            reportException(methodCall, s);
-            throw s;
-        }
-        reportReturn(methodCall);
-    }
-
-    @Override
     public String nativeSQL(String sql) throws SQLException {
         String methodCall = "nativeSQL(" + sql + ")";
         try {
@@ -725,10 +678,11 @@ public class ConnectionSpy implements Connection, Spy {
     }
 
     @Override
-    public void setAutoCommit(boolean autoCommit) throws SQLException {
-        String methodCall = "setAutoCommit(" + autoCommit + ")";
+    public void setTypeMap(java.util.Map<String, Class<?>> map) throws SQLException {
+        //todo: dump map??
+        String methodCall = "setTypeMap(" + map + ")";
         try {
-            realConnection.setAutoCommit(autoCommit);
+            realConnection.setTypeMap(map);
         } catch (SQLException s) {
             reportException(methodCall, s);
             throw s;
@@ -748,23 +702,10 @@ public class ConnectionSpy implements Connection, Spy {
     }
 
     @Override
-    public void setTypeMap(java.util.Map<String, Class<?>> map) throws SQLException {
-        //todo: dump map??
-        String methodCall = "setTypeMap(" + map + ")";
+    public void setCatalog(String catalog) throws SQLException {
+        String methodCall = "setCatalog(" + catalog + ")";
         try {
-            realConnection.setTypeMap(map);
-        } catch (SQLException s) {
-            reportException(methodCall, s);
-            throw s;
-        }
-        reportReturn(methodCall);
-    }
-
-    @Override
-    public void setTransactionIsolation(int level) throws SQLException {
-        String methodCall = "setTransactionIsolation(" + level + ")";
-        try {
-            realConnection.setTransactionIsolation(level);
+            realConnection.setCatalog(catalog);
         } catch (SQLException s) {
             reportException(methodCall, s);
             throw s;
@@ -784,6 +725,18 @@ public class ConnectionSpy implements Connection, Spy {
     }
 
     @Override
+    public void setAutoCommit(boolean autoCommit) throws SQLException {
+        String methodCall = "setAutoCommit(" + autoCommit + ")";
+        try {
+            realConnection.setAutoCommit(autoCommit);
+        } catch (SQLException s) {
+            reportException(methodCall, s);
+            throw s;
+        }
+        reportReturn(methodCall);
+    }
+
+    @Override
     public int getHoldability() throws SQLException {
         String methodCall = "getHoldability()";
         try {
@@ -795,6 +748,18 @@ public class ConnectionSpy implements Connection, Spy {
     }
 
     @Override
+    public void setHoldability(int holdability) throws SQLException {
+        String methodCall = "setHoldability(" + holdability + ")";
+        try {
+            realConnection.setHoldability(holdability);
+        } catch (SQLException s) {
+            reportException(methodCall, s);
+            throw s;
+        }
+        reportReturn(methodCall);
+    }
+
+    @Override
     public int getTransactionIsolation() throws SQLException {
         String methodCall = "getTransactionIsolation()";
         try {
@@ -803,6 +768,18 @@ public class ConnectionSpy implements Connection, Spy {
             reportException(methodCall, s);
             throw s;
         }
+    }
+
+    @Override
+    public void setTransactionIsolation(int level) throws SQLException {
+        String methodCall = "setTransactionIsolation(" + level + ")";
+        try {
+            realConnection.setTransactionIsolation(level);
+        } catch (SQLException s) {
+            reportException(methodCall, s);
+            throw s;
+        }
+        reportReturn(methodCall);
     }
 
     @Override

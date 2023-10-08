@@ -1,4 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -13,7 +13,8 @@
     <name>log4jdbc-log4j2-jdbc4.1</name>
     <properties>
         <JAVA_1_7_HOME>/Library/Java/JavaVirtualMachines/jdk-17.0.2.jdk/Contents/Home</JAVA_1_7_HOME>
-        <JAVA_1_7_BOOTCLASSPATH>/Library/Java/JavaVirtualMachines/jdk-17.0.2.jdk/Contents/Home/lib/*.jar</JAVA_1_7_BOOTCLASSPATH>
+        <JAVA_1_7_BOOTCLASSPATH>/Library/Java/JavaVirtualMachines/jdk-17.0.2.jdk/Contents/Home/lib/*.jar
+        </JAVA_1_7_BOOTCLASSPATH>
     </properties>
     <dependencies>
 

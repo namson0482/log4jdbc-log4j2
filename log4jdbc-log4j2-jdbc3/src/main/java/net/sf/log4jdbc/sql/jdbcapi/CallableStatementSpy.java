@@ -15,6 +15,8 @@
  */
 package net.sf.log4jdbc.sql.jdbcapi;
 
+import net.sf.log4jdbc.log.SpyLogDelegator;
+
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
@@ -23,8 +25,6 @@ import java.sql.*;
 import java.util.Calendar;
 import java.util.Map;
 
-import net.sf.log4jdbc.log.SpyLogDelegator;
-
 /**
  * Wraps a CallableStatement and reports method calls, returns and exceptions.
  *
@@ -32,14 +32,30 @@ import net.sf.log4jdbc.log.SpyLogDelegator;
  * @author Mathieu Seppey
  */
 public class CallableStatementSpy extends PreparedStatementSpy implements CallableStatement {
-    protected void reportAllReturns(String methodCall, String msg) {
-        log.methodReturned(this, methodCall, msg);
-    }
-
     /**
      * The real underlying CallableStatement that this CallableStatementSpy wraps.
      */
     private CallableStatement realCallableStatement;
+
+    /**
+     * Create a CallableStatementSpy (JDBC 4 version) to spy upon a CallableStatement.
+     *
+     * @param sql                   The SQL used for this CallableStatement
+     * @param connectionSpy         The ConnectionSpy which produced this CallableStatementSpy
+     * @param realCallableStatement The real CallableStatement that is being spied upon
+     * @param logDelegator          The <code>SpyLogDelegator</code> used by
+     *                              this <code>CallableStatementSpy</code> and all resources obtained
+     *                              from it (<code>ResultSet</code>s)
+     */
+    public CallableStatementSpy(String sql, ConnectionSpy connectionSpy,
+                                CallableStatement realCallableStatement, SpyLogDelegator logDelegator) {
+        super(sql, connectionSpy, realCallableStatement, logDelegator);
+        this.realCallableStatement = realCallableStatement;
+    }
+
+    protected void reportAllReturns(String methodCall, String msg) {
+        log.methodReturned(this, methodCall, msg);
+    }
 
     /**
      * Get the real underlying CallableStatement that this CallableStatementSpy wraps.
@@ -48,22 +64,6 @@ public class CallableStatementSpy extends PreparedStatementSpy implements Callab
      */
     public CallableStatement getRealCallableStatement() {
         return realCallableStatement;
-    }
-
-    /**
-     * Create a CallableStatementSpy (JDBC 4 version) to spy upon a CallableStatement.
-     *
-     * @param sql                   The SQL used for this CallableStatement
-     * @param connectionSpy         The ConnectionSpy which produced this CallableStatementSpy
-     * @param realCallableStatement The real CallableStatement that is being spied upon
-     * @param logDelegator    The <code>SpyLogDelegator</code> used by
-     * 						this <code>CallableStatementSpy</code> and all resources obtained 
-     * 						from it (<code>ResultSet</code>s)
-     */
-    public CallableStatementSpy(String sql, ConnectionSpy connectionSpy,
-                                CallableStatement realCallableStatement, SpyLogDelegator logDelegator) {
-        super(sql, connectionSpy, realCallableStatement, logDelegator);
-        this.realCallableStatement = realCallableStatement;
     }
 
     public String getClassType() {

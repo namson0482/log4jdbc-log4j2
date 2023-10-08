@@ -1,18 +1,17 @@
 /**
  * Copyright 2010 Tim Azzopardi
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 
@@ -23,9 +22,9 @@ import java.util.List;
 /***
  * @author Tim Azzopardi
  * @author Mathieu Seppey 
- * 
+ *
  * Update : changed printResultSet into getResultSetToPrint
- * 
+ *
  */
 
 public class ResultSetCollectorPrinter {
@@ -33,7 +32,8 @@ public class ResultSetCollectorPrinter {
     /**
      * A StringBuffer which is used to build the formatted table to print
      */
-    private StringBuffer table = new StringBuffer(); ;
+    private StringBuffer table = new StringBuffer();
+    ;
 
     /**
      * Default constructor
@@ -43,23 +43,33 @@ public class ResultSetCollectorPrinter {
     }
 
     /***
+     * Add space to the provided <code>String</code> to match the provided width
+     * @param s the <code>String</code> we want to adjust
+     * @param n the width of the returned <code>String</code>
+     * @return a <code>String</code> matching the provided width
+     */
+    private static String padRight(String s, int n) {
+        return String.format("%1$-" + n + "s", s);
+    }
+
+    /***
      * Return a table which represents a <code>ResultSet</code>,
      * to be printed by a logger,
      * based on the content of the provided <code>resultSetCollector</code>.
-     * 
+     *
      * This method will be actually called by a <code>SpyLogDelegator</code>
      * when the <code>next()</code> method of the spied <code>ResultSet</code>
      * return <code>false</code> meaning that its end is reached.
-     * It will be also called if the <code>ResultSet</code> is closed. 
-     * 
-     * 
+     * It will be also called if the <code>ResultSet</code> is closed.
+     *
+     *
      * @param resultSetCollector the ResultSetCollector which has collected the data we want to print
      * @return A <code>String</code> which contains the formatted table to print
-     * 
+     *
      * @see net.sf.log4jdbc.ResultSetSpy
      * @see net.sf.log4jdbc.sql.resultsetcollector.DefaultResultSetCollector
      * @see net.sf.log4jdbc.log.SpyLogDelegator
-     * 
+     *
      */
     public String getResultSetToPrint(ResultSetCollector resultSetCollector) {
 
@@ -133,17 +143,7 @@ public class ResultSetCollectorPrinter {
 
         resultSetCollector.reset();
 
-        return this.table.toString() ;
+        return this.table.toString();
 
-    }
-
-    /***
-     * Add space to the provided <code>String</code> to match the provided width
-     * @param s the <code>String</code> we want to adjust
-     * @param n the width of the returned <code>String</code>
-     * @return a <code>String</code> matching the provided width
-     */
-    private static String padRight(String s, int n) {
-        return String.format("%1$-" + n + "s", s);
     }
 }

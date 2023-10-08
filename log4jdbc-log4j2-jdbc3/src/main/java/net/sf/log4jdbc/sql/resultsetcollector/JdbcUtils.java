@@ -25,7 +25,7 @@ import java.sql.SQLException;
  * Generic utility methods for working with JDBC. Mainly for internal use within
  * the [spring] framework, but also useful for custom JDBC access code. Copied
  * from Spring JdbcUtils by Tim Azzopardi for log4jdbc
- * 
+ *
  * @author Thomas Risberg
  * @author Juergen Hoeller
  */
@@ -43,14 +43,11 @@ public abstract class JdbcUtils {
      * TIMESTAMP datatype and a <code>java.sql.Date</code> for DATE columns
      * leaving out the time portion: These columns will explicitly be extracted
      * as standard <code>java.sql.Timestamp</code> object.
-     * 
-     * @param rs
-     *            is the ResultSet holding the data
-     * @param index
-     *            is the column index
+     *
+     * @param rs    is the ResultSet holding the data
+     * @param index is the column index
      * @return the value object
-     * @throws SQLException
-     *             if thrown by the JDBC API
+     * @throws SQLException if thrown by the JDBC API
      * @see java.sql.Blob
      * @see java.sql.Clob
      * @see java.sql.Timestamp

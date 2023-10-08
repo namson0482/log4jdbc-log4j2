@@ -1,12 +1,12 @@
 /**
  * Copyright 2007-2012 Arthur Blake
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,13 +15,6 @@
  */
 package net.sf.log4jdbc.log.slf4j;
 
-import java.io.IOException;
-import java.io.LineNumberReader;
-import java.io.StringReader;
-import java.util.StringTokenizer;
-import java.util.regex.Pattern;
-
-
 import net.sf.log4jdbc.Properties;
 import net.sf.log4jdbc.log.AbstractSpyLogDelegator;
 import net.sf.log4jdbc.sql.Spy;
@@ -29,42 +22,40 @@ import net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy;
 import net.sf.log4jdbc.sql.jdbcapi.ResultSetSpy;
 import net.sf.log4jdbc.sql.resultsetcollector.ResultSetCollector;
 import net.sf.log4jdbc.sql.resultsetcollector.ResultSetCollectorPrinter;
-
-import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.LineNumberReader;
+import java.io.StringReader;
+import java.util.StringTokenizer;
+import java.util.regex.Pattern;
 
 /**
  * Delegates JDBC spy logging events to the the Simple Logging Facade for Java (slf4j).
  * <p>
- * Modifications for log4j2: 
+ * Modifications for log4j2:
  * <ul>
- * <li>Modification of the signature of the method <code>connectionOpened(Spy)</code> into 
- * <code>connectionOpened(Spy, long)</code>, to accept a parameter <code>execTime</code>, 
- * defining the time elapsed to open the connection in ms. This new method simply delegates 
- * to the formerly existing method, now private, so that the behavior of the slf4j logger is not modified. 
- * See <code>SpyLogDelegator</code> for more details. 
- * <li>Modification of the signature of the method <code>connectionClosed(Spy)</code> into 
- * <code>connectionClosed(Spy, long)</code>, to accept a parameter <code>execTime</code>, 
- * defining the time elapsed to open the connection in ms. This new method simply delegates 
- * to the formerly existing method, now private, so that the behavior of the slf4j logger is not modified. 
- * See <code>SpyLogDelegator</code> for more details. 
+ * <li>Modification of the signature of the method <code>connectionOpened(Spy)</code> into
+ * <code>connectionOpened(Spy, long)</code>, to accept a parameter <code>execTime</code>,
+ * defining the time elapsed to open the connection in ms. This new method simply delegates
+ * to the formerly existing method, now private, so that the behavior of the slf4j logger is not modified.
+ * See <code>SpyLogDelegator</code> for more details.
+ * <li>Modification of the signature of the method <code>connectionClosed(Spy)</code> into
+ * <code>connectionClosed(Spy, long)</code>, to accept a parameter <code>execTime</code>,
+ * defining the time elapsed to open the connection in ms. This new method simply delegates
+ * to the formerly existing method, now private, so that the behavior of the slf4j logger is not modified.
+ * See <code>SpyLogDelegator</code> for more details.
  * </ul>
  *
  * @author Arthur Blake
  * @author Frederic Bastian
  * @author Mathieu Seppey
  */
-public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator
-{
-    /**
-     * Create a SpyLogDelegator specific to the Simple Logging Facade for Java (slf4j).
-     */
-    public Slf4jSpyLogDelegator()
-    {
-    }
+public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator {
+    private static String nl = System.getProperty("line.separator");
 
     // logs for sql and jdbc
-
     /**
      * Logger that shows all JDBC calls on INFO level (exception ResultSet calls)
      */
@@ -101,7 +92,86 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator
     /**
      * Logger that shows the forward scrolled result sets in a table
      */
-    private final Logger resultSetTableLogger = LoggerFactory.getLogger("jdbc.resultsettable");  
+    private final Logger resultSetTableLogger = LoggerFactory.getLogger("jdbc.resultsettable");
+
+    /**
+     * Create a SpyLogDelegator specific to the Simple Logging Facade for Java (slf4j).
+     */
+    public Slf4jSpyLogDelegator() {
+    }
+
+    /**
+     * Get debugging info - the module and line number that called the logger
+     * version that prints the stack trace information from the point just before
+     * we got it (net.sf.log4jdbc)
+     * <p>
+     * if the optional log4jdbc.debug.stack.prefix system property is defined then
+     * the last call point from an application is shown in the debug
+     * trace output, instead of the last direct caller into log4jdbc
+     *
+     * @return debugging info for whoever called into JDBC from within the application.
+     */
+    private static String getDebugInfo() {
+        Throwable t = new Throwable();
+        t.fillInStackTrace();
+
+        StackTraceElement[] stackTrace = t.getStackTrace();
+
+        if (stackTrace != null) {
+            String className;
+
+            StringBuffer dump = new StringBuffer();
+
+            /**
+             * The DumpFullDebugStackTrace option is useful in some situations when
+             * we want to see the full stack trace in the debug info-  watch out
+             * though as this will make the logs HUGE!
+             */
+            if (Properties.isDumpFullDebugStackTrace()) {
+                boolean first = true;
+                for (int i = 0; i < stackTrace.length; i++) {
+                    className = stackTrace[i].getClassName();
+                    if (!className.startsWith("net.sf.log4jdbc")) {
+                        if (first) {
+                            first = false;
+                        } else {
+                            dump.append("  ");
+                        }
+                        dump.append("at ");
+                        dump.append(stackTrace[i]);
+                        dump.append(nl);
+                    }
+                }
+            } else {
+                dump.append(" ");
+                int firstLog4jdbcCall = 0;
+                int lastApplicationCall = 0;
+
+                for (int i = 0; i < stackTrace.length; i++) {
+                    className = stackTrace[i].getClassName();
+                    if (className.startsWith("net.sf.log4jdbc")) {
+                        firstLog4jdbcCall = i;
+                    } else if (Properties.isTraceFromApplication() &&
+                            Pattern.matches(Properties.getDebugStackPrefix(), className)) {
+                        lastApplicationCall = i;
+                        break;
+                    }
+                }
+                int j = lastApplicationCall;
+
+                if (j == 0)  // if app not found, then use whoever was the last guy that called a log4jdbc class.
+                {
+                    j = 1 + firstLog4jdbcCall;
+                }
+
+                dump.append(stackTrace[j].getClassName()).append(".").append(stackTrace[j].getMethodName()).append("(").
+                        append(stackTrace[j].getFileName()).append(":").append(stackTrace[j].getLineNumber()).append(")");
+            }
+
+            return dump.toString();
+        }
+        return null;
+    }
 
     /**
      * Determine if any of the 5 log4jdbc spy loggers are turned on (jdbc.audit | jdbc.resultset |
@@ -110,80 +180,60 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator
      * @return true if any of the 5 spy jdbc/sql loggers are enabled at debug info or error level.
      */
     @Override
-    public boolean isJdbcLoggingEnabled()
-    {
+    public boolean isJdbcLoggingEnabled() {
         return jdbcLogger.isErrorEnabled() || resultSetLogger.isErrorEnabled() || sqlOnlyLogger.isErrorEnabled() ||
                 sqlTimingLogger.isErrorEnabled() || connectionLogger.isErrorEnabled();
     }
 
-
     @Override
-    public void filteredExceptionOccured(Spy spy, String methodCall, Exception e, String sql, long execTime)
-    {
+    public void filteredExceptionOccured(Spy spy, String methodCall, Exception e, String sql, long execTime) {
         String classType = spy.getClassType();
         Integer spyNo = spy.getConnectionNumber();
         String header = spyNo + ". " + classType + "." + methodCall;
-        if (sql == null)
-        {
+        if (sql == null) {
             jdbcLogger.error(header, e);
             sqlOnlyLogger.error(header, e);
             sqlTimingLogger.error(header, e);
-        }
-        else
-        {
+        } else {
             sql = processSql(sql);
             jdbcLogger.error(header + " " + sql, e);
 
             // if at debug level, display debug info to error log
-            if (sqlOnlyLogger.isDebugEnabled())
-            {
+            if (sqlOnlyLogger.isDebugEnabled()) {
                 sqlOnlyLogger.error(getDebugInfo() + nl + spyNo + ". " + sql, e);
-            }
-            else
-            {
+            } else {
                 sqlOnlyLogger.error(header + " " + sql, e);
             }
 
             // if at debug level, display debug info to error log
-            if (sqlTimingLogger.isDebugEnabled())
-            {
+            if (sqlTimingLogger.isDebugEnabled()) {
                 sqlTimingLogger.error(getDebugInfo() + nl + spyNo + ". " + sql + " {FAILED after " + execTime + " msec}", e);
-            }
-            else
-            {
+            } else {
                 sqlTimingLogger.error(header + " FAILED! " + sql + " {FAILED after " + execTime + " msec}", e);
             }
         }
     }
 
     @Override
-    public void methodReturned(Spy spy, String methodCall, String returnMsg)
-    {
+    public void methodReturned(Spy spy, String methodCall, String returnMsg) {
         String classType = spy.getClassType();
-        Logger logger=ResultSetSpy.classTypeDescription.equals(classType)?
-                resultSetLogger:jdbcLogger;
-        if (logger.isInfoEnabled())
-        {
+        Logger logger = ResultSetSpy.classTypeDescription.equals(classType) ?
+                resultSetLogger : jdbcLogger;
+        if (logger.isInfoEnabled()) {
             String header = spy.getConnectionNumber() + ". " + classType + "." +
                     methodCall + " returned " + returnMsg;
-            if (logger.isDebugEnabled())
-            {
+            if (logger.isDebugEnabled()) {
                 logger.debug(header + " " + getDebugInfo());
-            }
-            else
-            {
+            } else {
                 logger.info(header);
             }
         }
-    }	
-
-    @Override
-    public void constructorReturned(Spy spy, String constructionInfo)
-    {
-        // not used in this implementation -- yet
     }
 
-    private static String nl = System.getProperty("line.separator");
+    @Override
+    public void constructorReturned(Spy spy, String constructionInfo) {
+        // not used in this implementation -- yet
+    }
 
     /**
      * Determine if the given sql should be logged or not
@@ -192,39 +242,31 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator
      * @param sql SQL to test.
      * @return true if the SQL should be logged, false if not.
      */
-    private boolean shouldSqlBeLogged(String sql)
-    {
-        if (sql == null)
-        {
+    private boolean shouldSqlBeLogged(String sql) {
+        if (sql == null) {
             return false;
         }
         sql = sql.trim();
 
-        if (sql.length()<6)
-        {
+        if (sql.length() < 6) {
             return false;
         }
-        sql = sql.substring(0,6).toLowerCase();
+        sql = sql.substring(0, 6).toLowerCase();
         return
                 (Properties.isDumpSqlSelect() && "select".equals(sql)) ||
-                (Properties.isDumpSqlInsert() && "insert".equals(sql)) ||
-                (Properties.isDumpSqlUpdate() && "update".equals(sql)) ||
-                (Properties.isDumpSqlDelete() && "delete".equals(sql)) ||
-                (Properties.isDumpSqlCreate() && "create".equals(sql));
+                        (Properties.isDumpSqlInsert() && "insert".equals(sql)) ||
+                        (Properties.isDumpSqlUpdate() && "update".equals(sql)) ||
+                        (Properties.isDumpSqlDelete() && "delete".equals(sql)) ||
+                        (Properties.isDumpSqlCreate() && "create".equals(sql));
     }
 
     @Override
-    public void sqlOccurred(Spy spy, String methodCall, String sql)
-    {
-        if (!Properties.isDumpSqlFilteringOn() || shouldSqlBeLogged(sql))
-        {
-            if (sqlOnlyLogger.isDebugEnabled())
-            {
+    public void sqlOccurred(Spy spy, String methodCall, String sql) {
+        if (!Properties.isDumpSqlFilteringOn() || shouldSqlBeLogged(sql)) {
+            if (sqlOnlyLogger.isDebugEnabled()) {
                 sqlOnlyLogger.debug(getDebugInfo() + nl + spy.getConnectionNumber() +
                         ". " + processSql(sql));
-            }
-            else if (sqlOnlyLogger.isInfoEnabled())
-            {
+            } else if (sqlOnlyLogger.isInfoEnabled()) {
                 sqlOnlyLogger.info(processSql(sql));
             }
         }
@@ -237,91 +279,72 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator
      * @param sql SQL to break up.
      * @return SQL broken up into multiple lines
      */
-    private String processSql(String sql)
-    {
-        if (sql==null)
-        {
+    private String processSql(String sql) {
+        if (sql == null) {
             return null;
         }
 
-        if (Properties.isSqlTrim())
-        {
+        if (Properties.isSqlTrim()) {
             sql = sql.trim();
         }
 
         StringBuilder output = new StringBuilder();
 
-        if (Properties.getDumpSqlMaxLineLength() <= 0)
-        {
+        if (Properties.getDumpSqlMaxLineLength() <= 0) {
             output.append(sql);
-        }
-        else
-        {
+        } else {
             // insert line breaks into sql to make it more readable
             StringTokenizer st = new StringTokenizer(sql);
             String token;
             int linelength = 0;
 
-            while (st.hasMoreElements())
-            {
+            while (st.hasMoreElements()) {
                 token = (String) st.nextElement();
 
                 output.append(token);
                 linelength += token.length();
                 output.append(" ");
                 linelength++;
-                if (linelength > Properties.getDumpSqlMaxLineLength())
-                {
+                if (linelength > Properties.getDumpSqlMaxLineLength()) {
                     output.append(nl);
                     linelength = 0;
                 }
             }
         }
 
-        if (Properties.isDumpSqlAddSemicolon())
-        {
+        if (Properties.isDumpSqlAddSemicolon()) {
             output.append(";");
         }
 
         String stringOutput = output.toString();
 
-        if (Properties.isTrimExtraBlankLinesInSql())
-        {
+        if (Properties.isTrimExtraBlankLinesInSql()) {
             LineNumberReader lineReader = new LineNumberReader(new StringReader(stringOutput));
 
             output = new StringBuilder();
 
             int contiguousBlankLines = 0;
-            try
-            {
-                while (true)
-                {
+            try {
+                while (true) {
                     String line = lineReader.readLine();
-                    if (line==null)
-                    {
+                    if (line == null) {
                         break;
                     }
 
                     // is this line blank?
-                    if (line.trim().length() == 0)
-                    {
-                        contiguousBlankLines ++;
+                    if (line.trim().length() == 0) {
+                        contiguousBlankLines++;
                         // skip contiguous blank lines
-                        if (contiguousBlankLines > 1)
-                        {
+                        if (contiguousBlankLines > 1) {
                             continue;
                         }
-                    }
-                    else
-                    {
+                    } else {
                         contiguousBlankLines = 0;
                         output.append(line);
                     }
                     output.append(nl);
                 }
-            }
-            catch (IOException e)
-            {
+            } catch (IOException e) {
                 // since we are reading from a buffer, this isn't likely to happen,
                 // but if it does we just ignore it and treat it like its the end of the stream
             }
@@ -335,41 +358,28 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator
      * Special call that is called only for JDBC method calls that contain SQL.
      *
      * @param spy        the Spy wrapping the class where the SQL occurred.
-     *
      * @param execTime   how long it took the SQL to run, in milliseconds.
-     *
      * @param methodCall a description of the name and call parameters of the
      *                   method that generated the SQL.
-     *
      * @param sql        SQL that occurred.
      */
     @Override
-    public void sqlTimingOccurred(Spy spy, long execTime, String methodCall, String sql)
-    {
+    public void sqlTimingOccurred(Spy spy, long execTime, String methodCall, String sql) {
         if (sqlTimingLogger.isErrorEnabled() &&
-                (!Properties.isDumpSqlFilteringOn() || shouldSqlBeLogged(sql)))
-        {
+                (!Properties.isDumpSqlFilteringOn() || shouldSqlBeLogged(sql))) {
             if (Properties.isSqlTimingErrorThresholdEnabled() &&
-                    execTime >= Properties.getSqlTimingErrorThresholdMsec())
-            {
+                    execTime >= Properties.getSqlTimingErrorThresholdMsec()) {
                 sqlTimingLogger.error(
                         buildSqlTimingDump(spy, execTime, methodCall, sql, sqlTimingLogger.isDebugEnabled()));
-            }
-            else if (sqlTimingLogger.isWarnEnabled())
-            {
+            } else if (sqlTimingLogger.isWarnEnabled()) {
                 if (Properties.isSqlTimingWarnThresholdEnabled() &&
-                        execTime >= Properties.getSqlTimingWarnThresholdMsec())
-                {
+                        execTime >= Properties.getSqlTimingWarnThresholdMsec()) {
                     sqlTimingLogger.warn(
                             buildSqlTimingDump(spy, execTime, methodCall, sql, sqlTimingLogger.isDebugEnabled()));
-                }
-                else if (sqlTimingLogger.isDebugEnabled())
-                {
+                } else if (sqlTimingLogger.isDebugEnabled()) {
                     sqlTimingLogger.debug(
                             buildSqlTimingDump(spy, execTime, methodCall, sql, true));
-                }
-                else if (sqlTimingLogger.isInfoEnabled())
-                {
+                } else if (sqlTimingLogger.isInfoEnabled()) {
                     sqlTimingLogger.info(
                             buildSqlTimingDump(spy, execTime, methodCall, sql, false));
                 }
@@ -382,25 +392,18 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator
      * logging.
      *
      * @param spy        the Spy wrapping the class where the SQL occurred.
-     *
      * @param execTime   how long it took the SQL to run, in milliseconds.
-     *
      * @param methodCall a description of the name and call parameters of the
      *                   method that generated the SQL.
-     *
      * @param sql        SQL that occurred.
-     *
      * @param debugInfo  if true, include debug info at the front of the output.
-     *
      * @return a SQL timing dump String for logging.
      */
     private String buildSqlTimingDump(Spy spy, long execTime, String methodCall,
-            String sql, boolean debugInfo)
-    {
+                                      String sql, boolean debugInfo) {
         StringBuffer out = new StringBuffer();
 
-        if (debugInfo)
-        {
+        if (debugInfo) {
             out.append(getDebugInfo());
             out.append(nl);
             out.append(spy.getConnectionNumber());
@@ -422,102 +425,13 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator
         return out.toString();
     }
 
-    /**
-     * Get debugging info - the module and line number that called the logger
-     * version that prints the stack trace information from the point just before
-     * we got it (net.sf.log4jdbc)
-     *
-     * if the optional log4jdbc.debug.stack.prefix system property is defined then
-     * the last call point from an application is shown in the debug
-     * trace output, instead of the last direct caller into log4jdbc
-     *
-     * @return debugging info for whoever called into JDBC from within the application.
-     */
-    private static String getDebugInfo()
-    {
-        Throwable t = new Throwable();
-        t.fillInStackTrace();
-
-        StackTraceElement[] stackTrace = t.getStackTrace();
-
-        if (stackTrace != null)
-        {
-            String className;
-
-            StringBuffer dump = new StringBuffer();
-
-            /**
-             * The DumpFullDebugStackTrace option is useful in some situations when
-             * we want to see the full stack trace in the debug info-  watch out
-             * though as this will make the logs HUGE!
-             */
-            if (Properties.isDumpFullDebugStackTrace())
-            {
-                boolean first=true;
-                for (int i = 0; i < stackTrace.length; i++)
-                {
-                    className = stackTrace[i].getClassName();
-                    if (!className.startsWith("net.sf.log4jdbc"))
-                    {
-                        if (first)
-                        {
-                            first = false;
-                        }
-                        else
-                        {
-                            dump.append("  ");
-                        }
-                        dump.append("at ");
-                        dump.append(stackTrace[i]);
-                        dump.append(nl);
-                    }
-                }
-            }
-            else
-            {
-                dump.append(" ");
-                int firstLog4jdbcCall = 0;
-                int lastApplicationCall = 0;
-
-                for (int i = 0; i < stackTrace.length; i++)
-                {
-                    className = stackTrace[i].getClassName();
-                    if (className.startsWith("net.sf.log4jdbc"))
-                    {
-                        firstLog4jdbcCall = i;
-                    }
-                    else if (Properties.isTraceFromApplication() &&
-                    		Pattern.matches(Properties.getDebugStackPrefix(), className))
-                    {
-                        lastApplicationCall = i;
-                        break;
-                    }
-                }
-                int j = lastApplicationCall;
-
-                if (j == 0)  // if app not found, then use whoever was the last guy that called a log4jdbc class.
-                {
-                    j = 1 + firstLog4jdbcCall;
-                }
-
-                dump.append(stackTrace[j].getClassName()).append(".").append(stackTrace[j].getMethodName()).append("(").
-                append(stackTrace[j].getFileName()).append(":").append(stackTrace[j].getLineNumber()).append(")");
-            }
-
-            return dump.toString();
-        }
-        return null;
-    }
-
     @Override
-    public void debug(String msg)
-    {
+    public void debug(String msg) {
         debugLogger.debug(msg);
     }
 
     @Override
-    public void connectionOpened(Spy spy, long execTime)
-    {
+    public void connectionOpened(Spy spy, long execTime) {
         //we just delegate to the already existing method, 
         //so that we do not change the behavior of the standard implementation
         this.connectionOpened(spy);
@@ -528,23 +442,18 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator
      *
      * @param spy ConnectionSpy that was created.
      */
-    private void connectionOpened(Spy spy)
-    {
-        if (connectionLogger.isDebugEnabled())
-        {		  
+    private void connectionOpened(Spy spy) {
+        if (connectionLogger.isDebugEnabled()) {
             connectionLogger.info(spy.getConnectionNumber() + ". Connection opened " +
                     getDebugInfo());
             connectionLogger.debug(ConnectionSpy.getOpenConnectionsDump());
-        }
-        else
-        {
+        } else {
             connectionLogger.info(spy.getConnectionNumber() + ". Connection opened");
         }
     }
 
     @Override
-    public void connectionClosed(Spy spy, long execTime)
-    {
+    public void connectionClosed(Spy spy, long execTime) {
         //we just delegate to the already existing method, 
         //so that we do not change the behavior of the standard implementation
         this.connectionClosed(spy);
@@ -555,23 +464,18 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator
      *
      * @param spy ConnectionSpy that was closed.
      */
-    private void connectionClosed(Spy spy)
-    {
-        if (connectionLogger.isDebugEnabled())
-        {
+    private void connectionClosed(Spy spy) {
+        if (connectionLogger.isDebugEnabled()) {
             connectionLogger.info(spy.getConnectionNumber() + ". Connection closed " +
                     getDebugInfo());
             connectionLogger.debug(ConnectionSpy.getOpenConnectionsDump());
-        }
-        else
-        {
+        } else {
             connectionLogger.info(spy.getConnectionNumber() + ". Connection closed");
         }
     }
 
     @Override
-    public void connectionAborted(Spy spy, long execTime)
-    {
+    public void connectionAborted(Spy spy, long execTime) {
         this.connectionAborted(spy);
     }
 
@@ -580,16 +484,12 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator
      *
      * @param spy ConnectionSpy that was aborted.
      */
-    private void connectionAborted(Spy spy)
-    {
-        if (connectionLogger.isDebugEnabled())
-        {
+    private void connectionAborted(Spy spy) {
+        if (connectionLogger.isDebugEnabled()) {
             connectionLogger.info(spy.getConnectionNumber() + ". Connection aborted " +
                     getDebugInfo());
             connectionLogger.debug(ConnectionSpy.getOpenConnectionsDump());
-        }
-        else
-        {
+        } else {
             connectionLogger.info(spy.getConnectionNumber() + ". Connection aborted");
         }
     }
@@ -606,7 +506,7 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator
 
     @Override
     public void resultSetCollected(ResultSetCollector resultSetCollector) {
-        String resultsToPrint = new ResultSetCollectorPrinter().getResultSetToPrint(resultSetCollector);    
+        String resultsToPrint = new ResultSetCollectorPrinter().getResultSetToPrint(resultSetCollector);
         resultSetTableLogger.info(resultsToPrint);
     }
 }

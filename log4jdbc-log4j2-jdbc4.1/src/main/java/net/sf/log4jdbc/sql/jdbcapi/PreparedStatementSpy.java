@@ -15,55 +15,65 @@
  */
 package net.sf.log4jdbc.sql.jdbcapi;
 
-import java.io.InputStream;
-import java.io.Reader;
-import java.math.BigDecimal;
-import java.net.URL;
-import java.sql.Array;
-import java.sql.Blob;
-import java.sql.Clob;
-import java.sql.Date;
-import java.sql.NClob;
-import java.sql.ParameterMetaData;
-import java.sql.PreparedStatement;
-import java.sql.Ref;
-import java.sql.RowId;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.SQLXML;
-import java.sql.Statement;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.List;
-
 import net.sf.log4jdbc.log.SpyLogDelegator;
 import net.sf.log4jdbc.sql.Spy;
 import net.sf.log4jdbc.sql.rdbmsspecifics.RdbmsSpecifics;
 
+import java.io.InputStream;
+import java.io.Reader;
+import java.math.BigDecimal;
+import java.net.URL;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+
 /**
  * Wraps a PreparedStatement and reports method calls, returns and exceptions.
  * <p>
- * MODIFICATIONS FOR LOG4J2: 
- * This class now overrides <code>Statement.getGeneratedKeys()</code> 
- * in order to use the convenient method <code>Statement.getGeneratedKeys(String)</code>, 
+ * MODIFICATIONS FOR LOG4J2:
+ * This class now overrides <code>Statement.getGeneratedKeys()</code>
+ * in order to use the convenient method <code>Statement.getGeneratedKeys(String)</code>,
  * by providing the String returned by <code>dumpedSql()</code>.
  *
  * @author Arthur Blake
  */
 public class PreparedStatementSpy extends StatementSpy implements PreparedStatement {
 
-    /**
-     * holds list of bind variables for tracing
-     */
-    protected final List<String> argTrace = new ArrayList<String>();
-
     // a way to turn on and off type help...
     // todo:  make this a configurable parameter
     // todo, debug arrays and streams in a more useful manner.... if possible
     private static final boolean showTypeHelp = false;
+    /**
+     * holds list of bind variables for tracing
+     */
+    protected final List<String> argTrace = new ArrayList<String>();
+    /**
+     * The real PreparedStatement that this PreparedStatementSpy wraps.
+     */
+    protected PreparedStatement realPreparedStatement;
+    /**
+     * RdbmsSpecifics for formatting SQL for the given RDBMS.
+     */
+    protected RdbmsSpecifics rdbmsSpecifics;
+
+    /**
+     * Create a PreparedStatementSpy (JDBC 4 version) for logging activity of another PreparedStatement.
+     *
+     * @param sql                   SQL for the prepared statement that is being spied upon.
+     * @param connectionSpy         ConnectionSpy that was called to produce this PreparedStatement.
+     * @param realPreparedStatement The actual PreparedStatement that is being spied upon.
+     * @param logDelegator          The <code>SpyLogDelegator</code> used by
+     *                              this <code>PreparedStatementSpy</code> and all resources obtained
+     *                              from it (<code>ResultSet</code>s)
+     */
+    public PreparedStatementSpy(String sql, ConnectionSpy connectionSpy,
+                                PreparedStatement realPreparedStatement, SpyLogDelegator logDelegator) {
+        super(connectionSpy, realPreparedStatement, logDelegator);  // does null check for us
+        this.sql = sql;
+        this.realPreparedStatement = realPreparedStatement;
+        rdbmsSpecifics = connectionSpy.getRdbmsSpecifics();
+    }
 
     /**
      * Store an argument (bind variable) into the argTrace list (above) for later dumping.
@@ -100,7 +110,6 @@ public class PreparedStatementSpy extends StatementSpy implements PreparedStatem
             }
         }
     }
-
 
     protected String dumpedSql() {
         StringBuffer dumpSql = new StringBuffer();
@@ -141,40 +150,12 @@ public class PreparedStatementSpy extends StatementSpy implements PreparedStatem
     }
 
     /**
-     * The real PreparedStatement that this PreparedStatementSpy wraps.
-     */
-    protected PreparedStatement realPreparedStatement;
-
-    /**
      * Get the real PreparedStatement that this PreparedStatementSpy wraps.
      *
      * @return the real PreparedStatement that this PreparedStatementSpy wraps.
      */
     public PreparedStatement getRealPreparedStatement() {
         return realPreparedStatement;
-    }
-
-    /**
-     * RdbmsSpecifics for formatting SQL for the given RDBMS.
-     */
-    protected RdbmsSpecifics rdbmsSpecifics;
-
-    /**
-     * Create a PreparedStatementSpy (JDBC 4 version) for logging activity of another PreparedStatement.
-     *
-     * @param sql                   SQL for the prepared statement that is being spied upon.
-     * @param connectionSpy         ConnectionSpy that was called to produce this PreparedStatement.
-     * @param realPreparedStatement The actual PreparedStatement that is being spied upon.
-     * @param logDelegator    The <code>SpyLogDelegator</code> used by
-     * 						this <code>PreparedStatementSpy</code> and all resources obtained
-     * 						from it (<code>ResultSet</code>s)
-     */
-    public PreparedStatementSpy(String sql, ConnectionSpy connectionSpy,
-                                PreparedStatement realPreparedStatement, SpyLogDelegator logDelegator) {
-        super(connectionSpy, realPreparedStatement, logDelegator);  // does null check for us
-        this.sql = sql;
-        this.realPreparedStatement = realPreparedStatement;
-        rdbmsSpecifics = connectionSpy.getRdbmsSpecifics();
     }
 
     public String getClassType() {

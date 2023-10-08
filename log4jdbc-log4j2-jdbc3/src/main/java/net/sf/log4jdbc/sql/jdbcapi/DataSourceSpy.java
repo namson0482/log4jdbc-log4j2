@@ -15,25 +15,24 @@
  */
 package net.sf.log4jdbc.sql.jdbcapi;
 
+import net.sf.log4jdbc.log.SpyLogDelegator;
+import net.sf.log4jdbc.log.SpyLogFactory;
+import net.sf.log4jdbc.sql.Spy;
+import net.sf.log4jdbc.sql.rdbmsspecifics.RdbmsSpecifics;
+
+import javax.sql.DataSource;
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.logging.Logger;
 
-import javax.sql.DataSource;
-
-import net.sf.log4jdbc.log.SpyLogDelegator;
-import net.sf.log4jdbc.log.SpyLogFactory;
-import net.sf.log4jdbc.sql.Spy;
-import net.sf.log4jdbc.sql.rdbmsspecifics.RdbmsSpecifics;
-
 
 /**
  * A proxy datasource that can be used to wrap a real data source allowing log4jdbc to do its work on the real
  * data source.
  * Inspired by http://groups.google.com/group/log4jdbc/browse_thread/thread/0706611d1b85e210
- *
+ * <p>
  * This can be useful in a Spring context. Imagine your spring context includes this datasource definition
  *
  * <pre>{@code
@@ -48,7 +47,7 @@ import net.sf.log4jdbc.sql.rdbmsspecifics.RdbmsSpecifics;
  *       <property name="maxStatements" value="${datasource.maxStatements}" />
  *   </bean>
  * }</pre>
- *
+ * <p>
  * You can get log4jdbc to work on this using the following config changes
  *
  * <pre>{@code
@@ -67,9 +66,9 @@ import net.sf.log4jdbc.sql.rdbmsspecifics.RdbmsSpecifics;
  *     <constructor-arg ref="dataSourceSpied" />
  *   </bean>
  * }</pre>
- *
- * You can also specify custom SQL formatting details, 
- * by providing a custom {@code RdmsSpecifics}: 
+ * <p>
+ * You can also specify custom SQL formatting details,
+ * by providing a custom {@code RdmsSpecifics}:
  * <pre>
  * {@code
  * <bean id="dataSourceSpied" class="...">
@@ -88,11 +87,9 @@ import net.sf.log4jdbc.sql.rdbmsspecifics.RdbmsSpecifics;
  * }
  * </pre>
  *
- *
  * @author tim.azzopardi Log4jdbcProxyDataSource.java
  * @author Mathieu Seppey renamed and modified
  * @author pdjohe - custom RdbmsSpecifics
- *
  */
 public class DataSourceSpy implements DataSource, Spy {
     private DataSource realDataSource;
@@ -111,8 +108,8 @@ public class DataSourceSpy implements DataSource, Spy {
 
     /**
      * Constructor.
-     * @param realDataSource    the real {@code javax.sql.DataSource} wrapped.
      *
+     * @param realDataSource the real {@code javax.sql.DataSource} wrapped.
      */
     public DataSourceSpy(DataSource realDataSource) {
         this(realDataSource, SpyLogFactory.getSpyLogDelegator());
@@ -120,9 +117,9 @@ public class DataSourceSpy implements DataSource, Spy {
 
     /**
      * Constructor.
-     * @param realDataSource    the real {@code javax.sql.DataSource} wrapped.
-     * @param logDelegator      the {@code SpyLogDelegator} to perform logging.
      *
+     * @param realDataSource the real {@code javax.sql.DataSource} wrapped.
+     * @param logDelegator   the {@code SpyLogDelegator} to perform logging.
      */
     public DataSourceSpy(DataSource realDataSource, SpyLogDelegator logDelegator) {
         this(realDataSource, logDelegator, null);
@@ -130,10 +127,10 @@ public class DataSourceSpy implements DataSource, Spy {
 
     /**
      * Constructor.
-     * @param realDataSource    the real {@code javax.sql.DataSource} wrapped.
-     * @param logDelegator      the {@code SpyLogDelegator} to perform logging.
-     * @param rdbmsSpecifics    the {@code RdbmsSpecifics} to format the SQL before logging.
      *
+     * @param realDataSource the real {@code javax.sql.DataSource} wrapped.
+     * @param logDelegator   the {@code SpyLogDelegator} to perform logging.
+     * @param rdbmsSpecifics the {@code RdbmsSpecifics} to format the SQL before logging.
      */
     public DataSourceSpy(DataSource realDataSource, SpyLogDelegator logDelegator,
                          RdbmsSpecifics rdbmsSpecifics) {
@@ -150,6 +147,7 @@ public class DataSourceSpy implements DataSource, Spy {
 
     /**
      * Deprecated to match Bean standard getter name.
+     *
      * @see #getSpyLogDelegator
      */
     @Deprecated
@@ -159,6 +157,7 @@ public class DataSourceSpy implements DataSource, Spy {
 
     /**
      * Deprecated to match Bean standard setter name.
+     *
      * @see #setSpyLogDelegator(SpyLogDelegator)
      */
     @Deprecated
@@ -170,8 +169,9 @@ public class DataSourceSpy implements DataSource, Spy {
      * Get the <code>SpyLogDelegator</code> that are used by all resources
      * obtained starting from this <code>DataSource</code>
      * (<code>Connection</code>s, <code>ResultSet</code>s, ...).
+     *
      * @return The <code>SpyLogDelegator</code> currently used
-     * 				by this <code>DataSource</code>.
+     * by this <code>DataSource</code>.
      */
     public SpyLogDelegator getSpyLogDelegator() {
         return this.spyLogDelegator;
@@ -183,9 +183,10 @@ public class DataSourceSpy implements DataSource, Spy {
      * <code>SpyLogDelegator</code> returned by
      * {@link net.sf.log4jdbc.log.SpyLogFactory#getSpyLogDelegator()
      * SpyLogFactory#getSpyLogDelegator()}.
-     * @param spyLogDelegator    The <code>SpyLogDelegator</code> to be used by all resources
-     * 							obtained starting from this <code>DataSource</code>
-     * 							(<code>Connection</code>s, <code>ResultSet</code>s, ...).
+     *
+     * @param spyLogDelegator The <code>SpyLogDelegator</code> to be used by all resources
+     *                        obtained starting from this <code>DataSource</code>
+     *                        (<code>Connection</code>s, <code>ResultSet</code>s, ...).
      */
     public void setSpyLogDelegator(SpyLogDelegator spyLogDelegator) {
         this.spyLogDelegator = spyLogDelegator;
@@ -193,8 +194,9 @@ public class DataSourceSpy implements DataSource, Spy {
 
     /**
      * Report to the logger all exceptions which have to be reported by this class
+     *
      * @param methodCall the method which threw an exception
-     * @param exception the thrown exception
+     * @param exception  the thrown exception
      */
     protected void reportException(String methodCall, SQLException exception) {
         spyLogDelegator.exceptionOccured(this, methodCall, exception, null, -1L);
@@ -203,8 +205,9 @@ public class DataSourceSpy implements DataSource, Spy {
     /**
      * Report to the logger all returns which have to be reported by this class
      * and which are not exceptions
+     *
      * @param methodCall the method which report the value
-     * @param value the reported value
+     * @param value      the reported value
      * @return Object The object originally returned by the method called
      */
     private Object reportReturn(String methodCall, Object value) {
@@ -262,6 +265,16 @@ public class DataSourceSpy implements DataSource, Spy {
         }
     }
 
+    public void setLoginTimeout(int seconds) throws SQLException {
+        String methodCall = "setLoginTimeout(" + seconds + ")";
+        try {
+            realDataSource.setLoginTimeout(seconds);
+        } catch (SQLException s) {
+            reportException(methodCall, s);
+            throw s;
+        }
+    }
+
     public Logger getParentLogger() throws SQLFeatureNotSupportedException {
         return null;
     }
@@ -270,16 +283,6 @@ public class DataSourceSpy implements DataSource, Spy {
         String methodCall = "getLogWriter()";
         try {
             return (PrintWriter) reportReturn(methodCall, realDataSource.getLogWriter());
-        } catch (SQLException s) {
-            reportException(methodCall, s);
-            throw s;
-        }
-    }
-
-    public void setLoginTimeout(int seconds) throws SQLException {
-        String methodCall = "setLoginTimeout(" + seconds + ")";
-        try {
-            realDataSource.setLoginTimeout(seconds);
         } catch (SQLException s) {
             reportException(methodCall, s);
             throw s;
@@ -306,14 +309,14 @@ public class DataSourceSpy implements DataSource, Spy {
     }
 
     /**
-     * Returns either the custom SQL formatting provided by the user at instantiation, 
-     * or the default {@code RdbmsSpecifics} for the current {@code Connection}, 
-     * if no custom {@code RdbmsSpecifics} was provided. 
+     * Returns either the custom SQL formatting provided by the user at instantiation,
+     * or the default {@code RdbmsSpecifics} for the current {@code Connection},
+     * if no custom {@code RdbmsSpecifics} was provided.
      *
-     * @param connection   The {@code Connection} allowing to acquire its default 
-     *                     {@code RdbmsSpecifics}.
+     * @param connection The {@code Connection} allowing to acquire its default
+     *                   {@code RdbmsSpecifics}.
      * @return The {@code RdbmsSpecifics} to be used for logging SQL
-     *                     from this {@code DataSourceSpy}.
+     * from this {@code DataSourceSpy}.
      */
     private RdbmsSpecifics getRdbmsSpecifics(Connection connection) {
         return this.rdbmsSpecifics == null ?

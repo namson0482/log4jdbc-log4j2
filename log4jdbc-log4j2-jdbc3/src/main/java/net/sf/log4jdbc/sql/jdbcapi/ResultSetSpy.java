@@ -15,6 +15,11 @@
  */
 package net.sf.log4jdbc.sql.jdbcapi;
 
+import net.sf.log4jdbc.log.SpyLogDelegator;
+import net.sf.log4jdbc.sql.Spy;
+import net.sf.log4jdbc.sql.resultsetcollector.DefaultResultSetCollector;
+import net.sf.log4jdbc.sql.resultsetcollector.ResultSetCollector;
+
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
@@ -23,32 +28,54 @@ import java.sql.*;
 import java.util.Calendar;
 import java.util.Map;
 
-import net.sf.log4jdbc.log.SpyLogDelegator;
-import net.sf.log4jdbc.sql.Spy;
-import net.sf.log4jdbc.sql.resultsetcollector.DefaultResultSetCollector;
-import net.sf.log4jdbc.sql.resultsetcollector.ResultSetCollector;
-
 /**
  * Wraps a ResultSet and reports method calls, returns and exceptions.
- *
+ * <p>
  * JDBC 4 version.
  *
  * @author Arthur Blake
  * @author Mathieu Seppey
  */
 public class ResultSetSpy implements ResultSet, Spy {
+    /**
+     * Description for ResultSet class type.
+     */
+    public static final String classTypeDescription = "ResultSet";
     private final SpyLogDelegator log;
-
     /**
      * Collects results from the result set spy method
      */
     private ResultSetCollector resultSetCollector = null;
+    private ResultSet realResultSet;
+    private StatementSpy parent;
+
+    /**
+     * Create a new ResultSetSpy that wraps another ResultSet object, that logs all method calls, expceptions, etc.
+     *
+     * @param parent        Statement that generated this ResultSet.
+     * @param realResultSet real underlying ResultSet that is being wrapped.
+     * @param logDelegator  The <code>SpyLogDelegator</code> used by
+     *                      this <code>ResultSetSpy</code>.
+     */
+    public ResultSetSpy(StatementSpy parent, ResultSet realResultSet,
+                        SpyLogDelegator logDelegator) {
+        if (realResultSet == null) {
+            throw new IllegalArgumentException("Must provide a non null real ResultSet");
+        }
+        this.realResultSet = realResultSet;
+        this.parent = parent;
+        this.log = logDelegator;
+        if (log.isResultSetCollectionEnabled()) {
+            resultSetCollector = new DefaultResultSetCollector(log.isResultSetCollectionEnabledWithUnreadValueFillIn());
+        }
+        reportReturn("new ResultSet", "", realResultSet);
+    }
 
     /**
      * Report an exception to be logged.
      *
      * @param methodCall description of method call and arguments passed to it that generated the exception.
-     * @param exception exception that was generated
+     * @param exception  exception that was generated
      */
     protected void reportException(String methodCall, SQLException exception) {
         log.exceptionOccured(this, methodCall, exception, null, -1L);
@@ -58,6 +85,7 @@ public class ResultSetSpy implements ResultSet, Spy {
      * Give a chance to the <code>resultSetCollector</code> (if one is set)
      * to obtain a <code>ResultSetMetaData</code> before <code>realResultSet</code>
      * is closed.
+     *
      * @see #close()
      */
     private void loadMetaDataIfNeeded() {
@@ -71,7 +99,7 @@ public class ResultSetSpy implements ResultSet, Spy {
      * this method.
      *
      * @param methodCall description of method call and arguments passed to it that returned.
-     * @param msg description of what the return value that was returned.  may be an empty String for void return types.
+     * @param msg        description of what the return value that was returned.  may be an empty String for void return types.
      */
     protected void reportAllReturns(String methodCall, Object returnValue, Object... methodParams) {
 
@@ -93,8 +121,6 @@ public class ResultSetSpy implements ResultSet, Spy {
         log.methodReturned(this, methodCall, toString);
     }
 
-    private ResultSet realResultSet;
-
     /**
      * Get the real ResultSet that this ResultSetSpy wraps.
      *
@@ -109,41 +135,12 @@ public class ResultSetSpy implements ResultSet, Spy {
      * to log result set content. Useful for developers who want to use
      * their own custom collector.
      *
-     * @param resultSetCollector    A <code>ResultSetCollector</code> used to collect
-     * 							the data of this <code>ResultSetSpy</code>.
+     * @param resultSetCollector A <code>ResultSetCollector</code> used to collect
+     *                           the data of this <code>ResultSetSpy</code>.
      */
     public void setResultSetCollector(ResultSetCollector resultSetCollector) {
         this.resultSetCollector = resultSetCollector;
     }
-
-    private StatementSpy parent;
-
-    /**
-     * Create a new ResultSetSpy that wraps another ResultSet object, that logs all method calls, expceptions, etc.
-     *
-     * @param parent Statement that generated this ResultSet.
-     * @param realResultSet real underlying ResultSet that is being wrapped.
-     * @param logDelegator    The <code>SpyLogDelegator</code> used by
-     * 						this <code>ResultSetSpy</code>.
-     */
-    public ResultSetSpy(StatementSpy parent, ResultSet realResultSet,
-                        SpyLogDelegator logDelegator) {
-        if (realResultSet == null) {
-            throw new IllegalArgumentException("Must provide a non null real ResultSet");
-        }
-        this.realResultSet = realResultSet;
-        this.parent = parent;
-        this.log = logDelegator;
-        if (log.isResultSetCollectionEnabled()) {
-            resultSetCollector = new DefaultResultSetCollector(log.isResultSetCollectionEnabledWithUnreadValueFillIn());
-        }
-        reportReturn("new ResultSet", "", realResultSet);
-    }
-
-    /**
-     * Description for ResultSet class type.
-     */
-    public static final String classTypeDescription = "ResultSet";
 
     public String getClassType() {
         return classTypeDescription;
@@ -157,7 +154,7 @@ public class ResultSetSpy implements ResultSet, Spy {
      * Conveniance method to report (for logging) that a method returned an Object.
      *
      * @param methodCall description of method call and arguments passed to it that returned.
-     * @param value return T.
+     * @param value      return T.
      * @return the return Object as passed in.
      */
     protected <T> T reportReturn(String methodCall, T returnValue, Object... args) {
@@ -1354,6 +1351,17 @@ public class ResultSetSpy implements ResultSet, Spy {
         }
     }
 
+    public void setFetchSize(int rows) throws SQLException {
+        String methodCall = "setFetchSize(" + rows + ")";
+        try {
+            realResultSet.setFetchSize(rows);
+        } catch (SQLException s) {
+            reportException(methodCall, s);
+            throw s;
+        }
+        reportReturn(methodCall, (Object[]) null);
+    }
+
     public SQLWarning getWarnings() throws SQLException {
         String methodCall = "getWarnings()";
         try {
@@ -1519,17 +1527,6 @@ public class ResultSetSpy implements ResultSet, Spy {
         }
     }
 
-    public void setFetchDirection(int direction) throws SQLException {
-        String methodCall = "setFetchDirection(" + direction + ")";
-        try {
-            realResultSet.setFetchDirection(direction);
-        } catch (SQLException s) {
-            reportException(methodCall, s);
-            throw s;
-        }
-        reportReturn(methodCall, (Object[]) null);
-    }
-
     public void updateCharacterStream(int columnIndex, Reader x, int length) throws SQLException {
         String methodCall = "updateCharacterStream(" + columnIndex + ", " + x + ", " + length + ")";
         try {
@@ -1678,6 +1675,17 @@ public class ResultSetSpy implements ResultSet, Spy {
         }
     }
 
+    public void setFetchDirection(int direction) throws SQLException {
+        String methodCall = "setFetchDirection(" + direction + ")";
+        try {
+            realResultSet.setFetchDirection(direction);
+        } catch (SQLException s) {
+            reportException(methodCall, s);
+            throw s;
+        }
+        reportReturn(methodCall, (Object[]) null);
+    }
+
     public long getLong(int columnIndex) throws SQLException {
         String methodCall = "getLong(" + columnIndex + ")";
         try {
@@ -1746,17 +1754,6 @@ public class ResultSetSpy implements ResultSet, Spy {
             reportException(methodCall, s);
             throw s;
         }
-    }
-
-    public void setFetchSize(int rows) throws SQLException {
-        String methodCall = "setFetchSize(" + rows + ")";
-        try {
-            realResultSet.setFetchSize(rows);
-        } catch (SQLException s) {
-            reportException(methodCall, s);
-            throw s;
-        }
-        reportReturn(methodCall, (Object[]) null);
     }
 
     public void updateRow() throws SQLException {

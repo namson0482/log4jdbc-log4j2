@@ -15,43 +15,37 @@
  */
 package net.sf.log4jdbc.sql.jdbcapi;
 
-import java.sql.CallableStatement;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.SQLWarning;
-import java.sql.Statement;
-import java.util.List;
-import java.util.ArrayList;
-
 import net.sf.log4jdbc.log.SpyLogDelegator;
 import net.sf.log4jdbc.sql.Spy;
 import net.sf.log4jdbc.sql.Utilities;
 
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
 
 /**
  * Wraps a Statement and reports method calls, returns and exceptions.
- *
+ * <p>
  * jdbc 3 version
  * <p>
  * MODIFICATIONS FOR LOG4J2:
  * <ul>
- * <li>The <code>sql</code> attribute of the class <code>PreparedStatementSpy</code> 
- * have been moved here, so that we can know on which query 
- * a <code>getGeneratedKeys()</code> is performed. It is useful in case of 
+ * <li>The <code>sql</code> attribute of the class <code>PreparedStatementSpy</code>
+ * have been moved here, so that we can know on which query
+ * a <code>getGeneratedKeys()</code> is performed. It is useful in case of
  * interleaved queries using different connections.
  * <li>All the <code>execute...</code> methods now set this <code>sql</code> attribute.
- * <li>A new convenient method has been added, <code>getGeneratedKeys(String)</code>, 
- * which allows to launch a <code>reportSqlTiming(long, String, String)</code>. 
- * <li><code>getGeneratedKeys()</code> now delegates to this method <code>getGeneratedKeys(String)</code>, 
+ * <li>A new convenient method has been added, <code>getGeneratedKeys(String)</code>,
+ * which allows to launch a <code>reportSqlTiming(long, String, String)</code>.
+ * <li><code>getGeneratedKeys()</code> now delegates to this method <code>getGeneratedKeys(String)</code>,
  * by providing the <code>sql</code> attribute.
- * <li>Removal of the option {@code log4jdbc.statement.warn}. The aim was to remove 
+ * <li>Removal of the option {@code log4jdbc.statement.warn}. The aim was to remove
  * dependency to the {@code Properties} class, and this option was useless.
- * <li>It is now the responsibility of the logger to determine whether 
- * {@code getGeneratedKeys()} exceptions should be logged (option 
- * {@code log4jdbc.suppress.generated.keys.exception}), not anymore the responsibility 
- * of this {@code StatementSpy}. The aim was to remove dependency to 
+ * <li>It is now the responsibility of the logger to determine whether
+ * {@code getGeneratedKeys()} exceptions should be logged (option
+ * {@code log4jdbc.suppress.generated.keys.exception}), not anymore the responsibility
+ * of this {@code StatementSpy}. The aim was to remove dependency to
  * the {@code Properties} class.
  * </ul>
  *
@@ -76,15 +70,11 @@ public class StatementSpy implements Statement, Spy {
      * The SQL query.
      */
     protected String sql;
-
     /**
-     * Get the real Statement that this StatementSpy wraps.
-     *
-     * @return the real Statement that this StatementSpy wraps.
+     * Tracking of current batch (see addBatch, clearBatch and executeBatch)
+     * //todo: should access to this List be synchronized?
      */
-    public Statement getRealStatement() {
-        return realStatement;
-    }
+    protected List<String> currentBatch = new ArrayList<String>();
 
     /**
      * Create a StatementSpy that wraps another Statement
@@ -92,9 +82,9 @@ public class StatementSpy implements Statement, Spy {
      *
      * @param connectionSpy Connection that created this Statement.
      * @param realStatement real underlying Statement that this StatementSpy wraps.
-     * @param logDelegator    The <code>SpyLogDelegator</code> used by
-     * 						this <code>StatementSpy</code> and all resources obtained from it 
-     * 						(<code>ResultSet</code>s)
+     * @param logDelegator  The <code>SpyLogDelegator</code> used by
+     *                      this <code>StatementSpy</code> and all resources obtained from it
+     *                      (<code>ResultSet</code>s)
      */
     public StatementSpy(ConnectionSpy connectionSpy, Statement realStatement,
                         SpyLogDelegator logDelegator) {
@@ -118,6 +108,15 @@ public class StatementSpy implements Statement, Spy {
         }
     }
 
+    /**
+     * Get the real Statement that this StatementSpy wraps.
+     *
+     * @return the real Statement that this StatementSpy wraps.
+     */
+    public Statement getRealStatement() {
+        return realStatement;
+    }
+
     public String getClassType() {
         return "Statement";
     }
@@ -128,10 +127,11 @@ public class StatementSpy implements Statement, Spy {
 
     /**
      * Report an exception to be logged which includes timing data on a sql failure.
+     *
      * @param methodCall description of method call and arguments passed to it that generated the exception.
-     * @param exception exception that was generated
-     * @param sql SQL associated with the call.
-     * @param execTime amount of time that the jdbc driver was chugging on the SQL before it threw an exception.
+     * @param exception  exception that was generated
+     * @param sql        SQL associated with the call.
+     * @param execTime   amount of time that the jdbc driver was chugging on the SQL before it threw an exception.
      */
     protected void reportException(String methodCall, SQLException exception, String sql, long execTime) {
         log.exceptionOccured(this, methodCall, exception, sql, execTime);
@@ -139,9 +139,10 @@ public class StatementSpy implements Statement, Spy {
 
     /**
      * Report an exception to be logged.
+     *
      * @param methodCall description of method call and arguments passed to it that generated the exception.
-     * @param exception exception that was generated
-     * @param sql SQL associated with the call.
+     * @param exception  exception that was generated
+     * @param sql        SQL associated with the call.
      */
     protected void reportException(String methodCall, SQLException exception, String sql) {
         log.exceptionOccured(this, methodCall, exception, sql, -1L);
@@ -151,7 +152,7 @@ public class StatementSpy implements Statement, Spy {
      * Report an exception to be logged.
      *
      * @param methodCall description of method call and arguments passed to it that generated the exception.
-     * @param exception exception that was generated
+     * @param exception  exception that was generated
      */
     protected void reportException(String methodCall, SQLException exception) {
         log.exceptionOccured(this, methodCall, exception, null, -1L);
@@ -161,7 +162,7 @@ public class StatementSpy implements Statement, Spy {
      * Report (for logging) that a method returned.  All the other reportReturn methods are conveniance methods that call this method.
      *
      * @param methodCall description of method call and arguments passed to it that returned.
-     * @param msg description of what the return value that was returned.  may be an empty String for void return types.
+     * @param msg        description of what the return value that was returned.  may be an empty String for void return types.
      */
     protected void reportAllReturns(String methodCall, String msg) {
         log.methodReturned(this, methodCall, msg);
@@ -171,7 +172,7 @@ public class StatementSpy implements Statement, Spy {
      * Conveniance method to report (for logging) that a method returned a boolean value.
      *
      * @param methodCall description of method call and arguments passed to it that returned.
-     * @param value boolean return value.
+     * @param value      boolean return value.
      * @return the boolean return value as passed in.
      */
     protected boolean reportReturn(String methodCall, boolean value) {
@@ -183,7 +184,7 @@ public class StatementSpy implements Statement, Spy {
      * Conveniance method to report (for logging) that a method returned a byte value.
      *
      * @param methodCall description of method call and arguments passed to it that returned.
-     * @param value byte return value.
+     * @param value      byte return value.
      * @return the byte return value as passed in.
      */
     protected byte reportReturn(String methodCall, byte value) {
@@ -195,7 +196,7 @@ public class StatementSpy implements Statement, Spy {
      * Conveniance method to report (for logging) that a method returned a int value.
      *
      * @param methodCall description of method call and arguments passed to it that returned.
-     * @param value int return value.
+     * @param value      int return value.
      * @return the int return value as passed in.
      */
     protected int reportReturn(String methodCall, int value) {
@@ -207,7 +208,7 @@ public class StatementSpy implements Statement, Spy {
      * Conveniance method to report (for logging) that a method returned a double value.
      *
      * @param methodCall description of method call and arguments passed to it that returned.
-     * @param value double return value.
+     * @param value      double return value.
      * @return the double return value as passed in.
      */
     protected double reportReturn(String methodCall, double value) {
@@ -219,7 +220,7 @@ public class StatementSpy implements Statement, Spy {
      * Conveniance method to report (for logging) that a method returned a short value.
      *
      * @param methodCall description of method call and arguments passed to it that returned.
-     * @param value short return value.
+     * @param value      short return value.
      * @return the short return value as passed in.
      */
     protected short reportReturn(String methodCall, short value) {
@@ -231,7 +232,7 @@ public class StatementSpy implements Statement, Spy {
      * Conveniance method to report (for logging) that a method returned a long value.
      *
      * @param methodCall description of method call and arguments passed to it that returned.
-     * @param value long return value.
+     * @param value      long return value.
      * @return the long return value as passed in.
      */
     protected long reportReturn(String methodCall, long value) {
@@ -243,7 +244,7 @@ public class StatementSpy implements Statement, Spy {
      * Conveniance method to report (for logging) that a method returned a float value.
      *
      * @param methodCall description of method call and arguments passed to it that returned.
-     * @param value float return value.
+     * @param value      float return value.
      * @return the float return value as passed in.
      */
     protected float reportReturn(String methodCall, float value) {
@@ -255,7 +256,7 @@ public class StatementSpy implements Statement, Spy {
      * Conveniance method to report (for logging) that a method returned an Object.
      *
      * @param methodCall description of method call and arguments passed to it that returned.
-     * @param value return Object.
+     * @param value      return Object.
      * @return the return Object as passed in.
      */
     protected Object reportReturn(String methodCall, Object value) {
@@ -371,17 +372,6 @@ public class StatementSpy implements Statement, Spy {
         }
     }
 
-    public void setMaxRows(int max) throws SQLException {
-        String methodCall = "setMaxRows(" + max + ")";
-        try {
-            realStatement.setMaxRows(max);
-        } catch (SQLException s) {
-            reportException(methodCall, s);
-            throw s;
-        }
-        reportReturn(methodCall);
-    }
-
     public boolean getMoreResults() throws SQLException {
         String methodCall = "getMoreResults()";
 
@@ -403,12 +393,6 @@ public class StatementSpy implements Statement, Spy {
         }
         reportReturn(methodCall);
     }
-
-    /**
-     * Tracking of current batch (see addBatch, clearBatch and executeBatch)
-     * //todo: should access to this List be synchronized?
-     */
-    protected List<String> currentBatch = new ArrayList<String>();
 
     public void addBatch(String sql) throws SQLException {
         String methodCall = "addBatch(" + sql + ")";
@@ -445,17 +429,6 @@ public class StatementSpy implements Statement, Spy {
         reportReturn(methodCall);
     }
 
-    public void setFetchDirection(int direction) throws SQLException {
-        String methodCall = "setFetchDirection(" + direction + ")";
-        try {
-            realStatement.setFetchDirection(direction);
-        } catch (SQLException s) {
-            reportException(methodCall, s);
-            throw s;
-        }
-        reportReturn(methodCall);
-    }
-
     public int[] executeBatch() throws SQLException {
         String methodCall = "executeBatch()";
 
@@ -489,17 +462,6 @@ public class StatementSpy implements Statement, Spy {
         return (int[]) reportReturn(methodCall, updateResults);
     }
 
-    public void setFetchSize(int rows) throws SQLException {
-        String methodCall = "setFetchSize(" + rows + ")";
-        try {
-            realStatement.setFetchSize(rows);
-        } catch (SQLException s) {
-            reportException(methodCall, s);
-            throw s;
-        }
-        reportReturn(methodCall);
-    }
-
     public int getQueryTimeout() throws SQLException {
         String methodCall = "getQueryTimeout()";
         try {
@@ -508,6 +470,17 @@ public class StatementSpy implements Statement, Spy {
             reportException(methodCall, s);
             throw s;
         }
+    }
+
+    public void setQueryTimeout(int seconds) throws SQLException {
+        String methodCall = "setQueryTimeout(" + seconds + ")";
+        try {
+            realStatement.setQueryTimeout(seconds);
+        } catch (SQLException s) {
+            reportException(methodCall, s);
+            throw s;
+        }
+        reportReturn(methodCall);
     }
 
     public Connection getConnection() throws SQLException {
@@ -522,7 +495,8 @@ public class StatementSpy implements Statement, Spy {
     /**
      * Convenient method to get generated keys and logging
      * the SQL query on which this operation is performed.
-     * @param sql    the SQL query
+     *
+     * @param sql the SQL query
      * @return the ResultSet to get the generated keys
      * @throws SQLException
      */
@@ -541,9 +515,9 @@ public class StatementSpy implements Statement, Spy {
             }
             return (ResultSet) reportReturn(methodCall, new ResultSetSpy(this, r, this.log));
         } catch (SQLException s) {
-            //NOTE log4jdbc-log4j2 1.17-SNAPSHOT: it is now the responsibility of 
-            //the SpyLogDelegator implementations to filter exceptions depending on 
-            //the property log4jdbc.suppress.generated.keys.exception. Disabling 
+            //NOTE log4jdbc-log4j2 1.17-SNAPSHOT: it is now the responsibility of
+            //the SpyLogDelegator implementations to filter exceptions depending on
+            //the property log4jdbc.suppress.generated.keys.exception. Disabling
             //the condition isSuppressGetGeneratedKeysException.
 //          if (!Properties.isSuppressGetGeneratedKeysException())
 //          {
@@ -574,10 +548,10 @@ public class StatementSpy implements Statement, Spy {
         }
     }
 
-    public void setQueryTimeout(int seconds) throws SQLException {
-        String methodCall = "setQueryTimeout(" + seconds + ")";
+    public void setFetchDirection(int direction) throws SQLException {
+        String methodCall = "setFetchDirection(" + direction + ")";
         try {
-            realStatement.setQueryTimeout(seconds);
+            realStatement.setFetchDirection(direction);
         } catch (SQLException s) {
             reportException(methodCall, s);
             throw s;
@@ -620,6 +594,17 @@ public class StatementSpy implements Statement, Spy {
             reportException(methodCall, s);
             throw s;
         }
+    }
+
+    public void setMaxFieldSize(int max) throws SQLException {
+        String methodCall = "setMaxFieldSize(" + max + ")";
+        try {
+            realStatement.setMaxFieldSize(max);
+        } catch (SQLException s) {
+            reportException(methodCall, s);
+            throw s;
+        }
+        reportReturn(methodCall);
     }
 
     public int executeUpdate(String sql) throws SQLException {
@@ -669,6 +654,17 @@ public class StatementSpy implements Statement, Spy {
         }
     }
 
+    public void setFetchSize(int rows) throws SQLException {
+        String methodCall = "setFetchSize(" + rows + ")";
+        try {
+            realStatement.setFetchSize(rows);
+        } catch (SQLException s) {
+            reportException(methodCall, s);
+            throw s;
+        }
+        reportReturn(methodCall);
+    }
+
     public int getResultSetConcurrency() throws SQLException {
         String methodCall = "getResultSetConcurrency()";
         try {
@@ -693,12 +689,12 @@ public class StatementSpy implements Statement, Spy {
         return false;
     }
 
-    public void setPoolable(boolean poolable) throws SQLException {
-
-    }
-
     public boolean isPoolable() throws SQLException {
         return false;
+    }
+
+    public void setPoolable(boolean poolable) throws SQLException {
+
     }
 
     public void closeOnCompletion() throws SQLException {
@@ -707,17 +703,6 @@ public class StatementSpy implements Statement, Spy {
 
     public boolean isCloseOnCompletion() throws SQLException {
         return false;
-    }
-
-    public void setMaxFieldSize(int max) throws SQLException {
-        String methodCall = "setMaxFieldSize(" + max + ")";
-        try {
-            realStatement.setMaxFieldSize(max);
-        } catch (SQLException s) {
-            reportException(methodCall, s);
-            throw s;
-        }
-        reportReturn(methodCall);
     }
 
     public boolean execute(String sql) throws SQLException {
@@ -817,6 +802,17 @@ public class StatementSpy implements Statement, Spy {
             reportException(methodCall, s);
             throw s;
         }
+    }
+
+    public void setMaxRows(int max) throws SQLException {
+        String methodCall = "setMaxRows(" + max + ")";
+        try {
+            realStatement.setMaxRows(max);
+        } catch (SQLException s) {
+            reportException(methodCall, s);
+            throw s;
+        }
+        reportReturn(methodCall);
     }
 
     public void close() throws SQLException {

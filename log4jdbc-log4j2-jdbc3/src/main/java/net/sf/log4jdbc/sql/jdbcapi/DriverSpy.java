@@ -15,24 +15,15 @@
  */
 package net.sf.log4jdbc.sql.jdbcapi;
 
-import java.sql.*;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.logging.Logger;
-
 import net.sf.log4jdbc.Properties;
 import net.sf.log4jdbc.log.SpyLogDelegator;
 import net.sf.log4jdbc.log.SpyLogFactory;
 import net.sf.log4jdbc.sql.Spy;
-import net.sf.log4jdbc.sql.rdbmsspecifics.Db2RdbmsSpecifics;
-import net.sf.log4jdbc.sql.rdbmsspecifics.MySqlRdbmsSpecifics;
-import net.sf.log4jdbc.sql.rdbmsspecifics.OracleRdbmsSpecifics;
-import net.sf.log4jdbc.sql.rdbmsspecifics.RdbmsSpecifics;
-import net.sf.log4jdbc.sql.rdbmsspecifics.SqlServerRdbmsSpecifics;
+import net.sf.log4jdbc.sql.rdbmsspecifics.*;
+
+import java.sql.*;
+import java.util.*;
+import java.util.logging.Logger;
 
 
 /**
@@ -94,10 +85,10 @@ import net.sf.log4jdbc.sql.rdbmsspecifics.SqlServerRdbmsSpecifics;
  *
  * <h3>Modifications for log4j2: </h3>
  * <ul>
- * <li>The initialization of all properties have been delegated to the class 
+ * <li>The initialization of all properties have been delegated to the class
  * {@link net.sf.log4jdbc.log4j2.Properties}.
- * <li>Modification of the method <code>connect(String, Properties)</code> 
- * in order to compute the time taken to open a connection to the database. 
+ * <li>Modification of the method <code>connect(String, Properties)</code>
+ * in order to compute the time taken to open a connection to the database.
  * Constructors of <code>ConnectionSpy</code> have been modified accordingly.
  * </ul>
  *
@@ -107,39 +98,24 @@ import net.sf.log4jdbc.sql.rdbmsspecifics.SqlServerRdbmsSpecifics;
  */
 public class DriverSpy implements Driver {
     /**
-     * The last actual, underlying driver that was requested via a URL.
-     */
-    private Driver lastUnderlyingDriverRequested;
-
-    /**
-     * Maps driver class names to RdbmsSpecifics objects for each kind of
-     * database.
-     */
-    private final static Map<String, RdbmsSpecifics> rdbmsSpecifics;
-
-    /**
      * Default <code>RdbmsSpecifics</code>.
      */
     static final RdbmsSpecifics defaultRdbmsSpecifics = new RdbmsSpecifics();
-
     /**
      * A <code>SpyLogDelegator</code> used here for logs internal to log4jdbc
      * (see <code>debug(String)</code> method of <code>SpyLogDelegator</code>).
      */
     static final SpyLogDelegator log = SpyLogFactory.getSpyLogDelegator();
-
+    /**
+     * Maps driver class names to RdbmsSpecifics objects for each kind of
+     * database.
+     */
+    private final static Map<String, RdbmsSpecifics> rdbmsSpecifics;
     /**
      * A <code>String</code> representing the prefix of URL
      * to use log4jdbc.
      */
     static final private String log4jdbcUrlPrefix = "jdbc:log4";
-
-    /**
-     * Default constructor.
-     */
-    public DriverSpy() {
-
-    }
 
     /**
      * Static initializer.
@@ -226,6 +202,18 @@ public class DriverSpy implements Driver {
     }
 
     /**
+     * The last actual, underlying driver that was requested via a URL.
+     */
+    private Driver lastUnderlyingDriverRequested;
+
+    /**
+     * Default constructor.
+     */
+    public DriverSpy() {
+
+    }
+
+    /**
      * Get the RdbmsSpecifics object for a given Connection.
      *
      * @param conn JDBC connection to get RdbmsSpecifics for.
@@ -284,7 +272,7 @@ public class DriverSpy implements Driver {
      * actually do any work without an underlying driver.
      *
      * @return <code>true</code> if the underlying driver is JDBC Compliant;
-     *         <code>false</code> otherwise.
+     * <code>false</code> otherwise.
      */
     public boolean jdbcCompliant() {
         return lastUnderlyingDriverRequested != null &&
@@ -300,9 +288,7 @@ public class DriverSpy implements Driver {
      * an underlying driver that this DriverSpy can spy on.
      *
      * @param url JDBC URL.
-     *
      * @return true if this Driver can handle the URL.
-     *
      * @throws SQLException if a database access error occurs
      */
     public boolean acceptsURL(String url) throws SQLException {
@@ -319,11 +305,9 @@ public class DriverSpy implements Driver {
      * that accepts the URL.
      *
      * @param url JDBC connection URL.
-     *
      * @return Underlying driver for the given URL. Null is returned if the URL is
-     *         not a <code>jdbc:log4</code> type URL or there is no underlying
-     *         driver that accepts the URL.
-     *
+     * not a <code>jdbc:log4</code> type URL or there is no underlying
+     * driver that accepts the URL.
      * @throws SQLException if a database access error occurs.
      */
     private Driver getUnderlyingDriver(String url) throws SQLException {
@@ -348,9 +332,9 @@ public class DriverSpy implements Driver {
      * Get the actual URL that the real driver expects
      * (strip off <code>#log4jdbcUrlPrefix</code> from <code>url</code>).
      *
-     * @param url    A <code>String</code> corresponding to a JDBC url for log4jdbc.
+     * @param url A <code>String</code> corresponding to a JDBC url for log4jdbc.
      * @return A <code>String</code> representing url
-     * 				with <code>#log4jdbcUrlPrefix</code> stripped off.
+     * with <code>#log4jdbcUrlPrefix</code> stripped off.
      */
     private String getRealUrl(String url) {
         return url.substring(log4jdbcUrlPrefix.length());
@@ -363,14 +347,12 @@ public class DriverSpy implements Driver {
      * wraps the real Connection is returned.
      *
      * @param url  JDBC connection URL
-     * .
+     *             .
      * @param info a list of arbitrary string tag/value pairs as
      *             connection arguments. Normally at least a "user" and
      *             "password" property should be included.
-     *
      * @return a <code>Connection</code> object that represents a
-     *             connection to the URL.
-     *
+     * connection to the URL.
      * @throws SQLException if a database access error occurs
      */
     public Connection connect(String url, java.util.Properties info) throws SQLException {
@@ -411,13 +393,11 @@ public class DriverSpy implements Driver {
      * Gets information about the possible properties for the underlying driver.
      *
      * @param url  the URL of the database to which to connect
-     *
      * @param info a proposed list of tag/value pairs that will be sent on
      *             connect open
      * @return an array of <code>DriverPropertyInfo</code> objects describing
-     *             possible properties.  This array may be an empty array if no
-     *             properties are required.
-     *
+     * possible properties.  This array may be an empty array if no
+     * properties are required.
      * @throws SQLException if a database access error occurs
      */
     public DriverPropertyInfo[] getPropertyInfo(String url, java.util.Properties info)
