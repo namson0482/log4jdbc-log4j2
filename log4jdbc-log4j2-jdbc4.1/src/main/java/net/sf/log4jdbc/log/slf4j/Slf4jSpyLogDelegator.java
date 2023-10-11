@@ -67,7 +67,7 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator {
     private final Logger resultSetLogger = LoggerFactory.getLogger("jdbc.resultset");
 
     /**
-     * Logger that shows only the SQL that is occuring
+     * Logger that shows only the SQL that is occurring
      */
     private final Logger sqlOnlyLogger = LoggerFactory.getLogger("jdbc.sqlonly");
 
@@ -263,13 +263,14 @@ public class Slf4jSpyLogDelegator extends AbstractSpyLogDelegator {
     @Override
     public void sqlOccurred(Spy spy, String methodCall, String sql) {
         if (!Properties.isDumpSqlFilteringOn() || shouldSqlBeLogged(sql)) {
+            String query = processSql(sql);
             if (sqlOnlyLogger.isDebugEnabled()) {
+                System.out.println("Query Command: " + query);
                 sqlOnlyLogger.debug(getDebugInfo() + nl + spy.getConnectionNumber() +
-                        ". " + processSql(sql));
+                        ". " + query);
             } else if (sqlOnlyLogger.isInfoEnabled()) {
-                String value = processSql(sql);
-                System.out.println("Query Command: " + value);
-                sqlOnlyLogger.info(value);
+                System.out.println("Query Command: " + query);
+                sqlOnlyLogger.info(query);
             }
         }
     }
