@@ -17,7 +17,6 @@
         </JAVA_1_7_BOOTCLASSPATH>
     </properties>
     <dependencies>
-        <!-- As of beta5, log4j2 is compiled with JDK 1.6, and is then not usable with JDK 1.5 anymore -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-core</artifactId>
@@ -33,7 +32,6 @@
 
     </dependencies>
 
-    <!-- in order to compile with JDK 1.5 -->
     <build>
         <plugins>
             <plugin>
@@ -45,9 +43,7 @@
                     <target>17</target>
                     <compilerVersion>17</compilerVersion>
                     <fork>true</fork>
-
                     <executable>${JAVA_1_7_HOME}/bin/javac</executable>
-                    <bootclasspath>${JAVA_1_7_BOOTCLASSPATH}</bootclasspath>
                     <verbose>true</verbose>
                 </configuration>
             </plugin>

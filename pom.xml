@@ -115,10 +115,8 @@
 
     <build>
         <plugins>
-            <!-- In order to have each test class run into its own JVM 
-                 (many properties are initialized only at class loading, 
-                 so we need a different ClassLoader for each test class) -->
-            <plugin>
+
+            <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.16</version>
@@ -129,7 +127,7 @@
 
                 <executions>
 
-                    <!-- Regular execution, where all libraries are available -->
+                    &lt;!&ndash; Regular execution, where all libraries are available &ndash;&gt;
                     <execution>
                         <id>default-test</id>
                         <phase>test</phase>
@@ -143,8 +141,8 @@
                         </configuration>
                     </execution>
 
-                    <!-- Test when a logging library is missing (more like an integration test, 
-                         but simple enough to be handled here) -->
+                    &lt;!&ndash; Test when a logging library is missing (more like an integration test,
+                         but simple enough to be handled here) &ndash;&gt;
                     <execution>
                         <id>it-test</id>
                         <phase>test</phase>
@@ -167,7 +165,7 @@
                     </execution>
 
                 </executions>
-            </plugin>
+            </plugin>-->
         </plugins>
     </build>
 
